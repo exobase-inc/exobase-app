@@ -26,14 +26,14 @@ const networkError = {
 
 export default async function fetcher<T = any>(endpoint: string, options: RequestInit): Promise<[ApiError | null, T | null]> {
   const { apiUrl } = config
-  const [netErr, response] = await _.tryit<Response>(fetch)(`${apiUrl}${endpoint}`, {
+  const [netErr, response] = await _.try(() => fetch(`${apiUrl}${endpoint}`, {
     ...options,
     method: 'POST',
     headers: {
       ...options?.headers,
       'content-type': 'application/json'
     }
-  })
+  }))()
   if (netErr || !response) return [networkError, null]
   const [parseErr, json] = await _.tryit<any>(() => response.json())()
   if (parseErr) return [networkError, null]
@@ -121,6 +121,7 @@ export async function createService({
     provider: t.CloudProvider
     service: t.CloudService
     language: t.Language
+    config: any
     source: {
       repository: string
       branch: string
@@ -143,11 +144,11 @@ export async function createService({
 export async function deployService({
   idToken,
   serviceId,
-  instanceId
+  environmentId
 }: {
   idToken: string
   serviceId: string
-  instanceId: string
+  environmentId: string
 }): Promise<ApiResponse<{
   service: t.Service
 }>> {
@@ -157,7 +158,7 @@ export async function deployService({
     },
     body: JSON.stringify({
       serviceId,
-      instanceId
+      environmentId
     })
   })
   return { error, data: json?.result }
@@ -181,6 +182,26 @@ export async function updateProviderConfig({
     body: JSON.stringify({
       provider, 
       config: providerConfig
+    })
+  })
+  return { error, data: json?.result }
+}
+
+export async function getLatestDeploymentsInEnvironment({
+  idToken,
+  environmentId
+}: {
+  idToken: string
+  environmentId: string
+}): Promise<ApiResponse<{
+  deployments: t.Deployment[]
+}>> {
+  const [error, json] = await fetcher('/platforms/getLatestDeploymentsInEnvironment', {
+    headers: {
+      'Authorization': `Bearer ${idToken}`
+    },
+    body: JSON.stringify({
+      environmentId
     })
   })
   return { error, data: json?.result }

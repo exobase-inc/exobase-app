@@ -77,7 +77,7 @@ export default function LoginScene() {
       email
     })
 
-    navigate('/services')
+    navigate('/platform')
   }
 
   return (

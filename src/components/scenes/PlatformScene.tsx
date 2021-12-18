@@ -16,21 +16,18 @@ import * as api from '../../api'
 import {
   idTokenState,
   currentPlatformIdState,
-  currentEnvironmentState,
   currentPlatformState
 } from '../../state/app'
-import ServiceGrid from '../ui/ServiceGrid'
 import { SceneLayout } from '../ui'
 
 
-export default function DomainsScene() {
+export default function PlatformScene() {
 
   const navigate = useNavigate()
   const idToken = Recoil.useRecoilValue(idTokenState)
   const getPlatformRequest = useFetch(api.getPlatformById)
   const currentPlatformId = Recoil.useRecoilValue(currentPlatformIdState)
-  const [currentPlatform, setCurrentPlatform] = Recoil.useRecoilState(currentPlatformState)
-  const [currentEnvironment, setCurrentEnvironmentId] = Recoil.useRecoilState(currentEnvironmentState)
+  const setCurrentPlatform = Recoil.useSetRecoilState(currentPlatformState)
 
   useEffect(() => {
     if (!currentPlatformId) return
@@ -49,37 +46,27 @@ export default function DomainsScene() {
     setCurrentPlatform(data.platform)
   }
 
-  const services = currentPlatform?.services ?? []
-
-  const setupDomain = () => {
-    navigate('/services/new')
+  const gotoServices = () => {
+    navigate('/services')
   }
 
   return (
     <SceneLayout>
-      {services.length === 0 && (
-        <Center height='50vh'>
-          <Pane
-            backgroundColor='#FFFFFF'
-            padding={majorScale(4)}
-            borderRadius={4}
-          >
-            <Heading>No Domains</Heading>
-            <Paragraph marginBottom={majorScale(2)}>
-              This platform has no domains configured
-            </Paragraph>
-            <Pane>
-              <Button onClick={setupDomain}>Setup a Domain</Button>
-            </Pane>
+      <Center height='50vh'>
+        <Pane
+          backgroundColor='#FFFFFF'
+          padding={majorScale(4)}
+          borderRadius={4}
+        >
+          <Heading>Dashboard Coming Soon</Heading>
+          <Paragraph marginBottom={majorScale(2)}>
+            Service health, cloud settings, deployments, and cost breakdowns is on the way.
+          </Paragraph>
+          <Pane>
+            <Button onClick={gotoServices}>View Services</Button>
           </Pane>
-        </Center>
-      )}
-      {services.length > 0 && (
-        <ServiceGrid
-          services={services}
-          environmentId={currentEnvironment?.id}
-        />
-      )}
+        </Pane>
+      </Center>
     </SceneLayout>
   )
 }

@@ -13,6 +13,7 @@ import CreateServiceScene from './components/scenes/CreateServiceScene'
 import LoginScene from './components/scenes/LoginScene'
 import ProviderScene from './components/scenes/ProviderScene'
 import DomainsScene from './components/scenes/DomainsScene'
+import PlatformScene from './components/scenes/PlatformScene'
 
 const GuardAuth = ({
   children
@@ -90,8 +91,6 @@ const GuardState = ({
       exp: loginResponse.data.exp, 
       email: token.email
     })
-
-    navigate('/services')
   }
 
   useEffect(() => {
@@ -108,6 +107,13 @@ export default function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="services" />} />
+        <Route path="/platform" element={(
+          <GuardAuth>
+            <GuardState>
+              <PlatformScene />
+            </GuardState>
+          </GuardAuth>
+        )} />
         <Route path="/services" element={(
           <GuardAuth>
             <GuardState>

@@ -1,51 +1,63 @@
 import {
   Pane,
   Button,
-  IconButton,
   Heading,
+  Paragraph,
   SelectMenu,
   majorScale,
   Image
 } from 'evergreen-ui'
-import { HiOutlineSwitchHorizontal } from 'react-icons/hi'
+import { HiSwitchHorizontal } from 'react-icons/hi'
 import { Split } from '../layout'
-import Logo from './Logo'
-import Recoil from 'recoil'
-import { appState, currentPlatformState, userState } from '../../state/app'
+import * as t from '../../types'
 
 
-export default function Header() {
-
-  const { platforms } = Recoil.useRecoilValue(appState)
-  const [currentPlatform, setCurrentPlatform] = Recoil.useRecoilState(currentPlatformState)
-  const user = Recoil.useRecoilValue(userState)
-
-  const changeSelectedProject = (platformId: string) => {
-    // TODO: Fetch detailed project data from API
-    setCurrentPlatform(platformId as any)
-  }
+export default function Header({
+  title,
+  subtitle,
+  platforms,
+  currentPlatformId,
+  user,
+  onSwitchPlatform
+}: {
+  title?: string
+  subtitle?: string
+  platforms?: t.PlatformPreview[]
+  currentPlatformId?: string
+  user?: t.User | null
+  onSwitchPlatform?: (platformId: string) => void
+}) {
 
   return (
-    <Split padding={majorScale(2)} alignItems='center'>
-      <Split flex={1} alignItems='center'>
-        <Pane marginRight={majorScale(4)}>
-          <Logo width={35} />
-        </Pane>
+    <Split padding={majorScale(4)} alignItems='center'>
+      <Pane flex={1}>
         <Split alignItems='center'>
-          <Heading marginRight={majorScale(1)}>{currentPlatform?.name}</Heading>
+          <Heading
+            size={800}
+            fontWeight={700}
+          >
+            {title}
+          </Heading>
           <SelectMenu
             title="Select Platform"
-            options={platforms.map(p => ({ label: p.name, value: p.id }))}
-            selected={currentPlatform?.id}
-            onSelect={(item) => changeSelectedProject(item.value as string)}
+            options={platforms?.map(p => ({ label: p.name, value: p.id })) ?? []}
+            selected={currentPlatformId}
+            onSelect={(item) => onSwitchPlatform?.(item.value as string)}
           >
-            <IconButton 
+            <Button
               appearance='minimal'
-              icon={<HiOutlineSwitchHorizontal />} 
-            />
+              iconBefore={<HiSwitchHorizontal />}
+              borderRadius={20}
+              marginLeft={majorScale(1)}
+              paddingY={majorScale(1)}
+              paddingX={majorScale(2)}
+            >
+              switch
+            </Button>
           </SelectMenu>
         </Split>
-      </Split>
+        <Paragraph>{subtitle}</Paragraph>
+      </Pane>
       <Image
         marginLeft={majorScale(2)}
         borderRadius={4}

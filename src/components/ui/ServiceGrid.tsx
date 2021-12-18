@@ -1,49 +1,63 @@
 import * as t from '../../types'
 import Recoil from 'recoil'
-import { useCurrentWidth } from 'react-socks'
 import Skeleton from 'react-loading-skeleton'
 import { Split, Center } from '../layout'
 import { PROVIDER_LOGOS, CLOUD_SERVICE_LOGOS } from '../../const'
-import { HiCog, HiOutlineDotsVertical, HiUpload } from 'react-icons/hi'
+import { HiCog, HiOutlineDotsVertical, HiOutlineEye, HiUpload } from 'react-icons/hi'
 import { idTokenState } from '../../state/app'
 import { useFetch } from '../../hooks'
 import * as api from '../../api'
+import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict'
+import { Blink } from '../ui'
+import theme from '../../styles'
 import {
   majorScale,
   Pane,
-  Image,
+  Text,
   Heading,
   Button,
-  IconButton
+  IconButton,
+  Badge,
+  Strong,
+  StatusIndicator
 } from 'evergreen-ui'
 
 
 export default function ServiceGrid({
   loading = false,
   environmentId,
-  services
+  deployments = [],
+  services,
+  onSelect
 }: {
   loading?: boolean
   environmentId?: string | null
+  deployments?: t.Deployment[]
   services: t.Service[]
+  onSelect?: (serviceId: string) => void
 }) {
-  const width = useCurrentWidth()
-  const columns = Math.round(width / 350)
+  const instancesInEnvironment = services.reduce((acc, service) => {
+    const instance = service.instances.find(i => i.environmentId === environmentId)
+    return instance ? [...acc, { instance, service }] : acc
+  }, [] as { instance: t.ServiceInstance, service: t.Service }[])
+  console.log({ deployments })
+  console.log({ services })
+  console.log({ instancesInEnvironment })
   return (
     <Pane
       flex={1}
       display='grid'
-      gridTemplateColumns={`repeat(${columns}, 1fr)`}
+      gridTemplateColumns={`repeat(2, 1fr)`}
       columnGap={majorScale(4)}
       rowGap={majorScale(4)}
-      paddingTop={majorScale(4)}
-      paddingBottom={majorScale(4)}
     >
-      {!loading && services.map(service => (
+      {!loading && instancesInEnvironment.map(instance => (
         <ServiceGridItem
-          key={service.id}
-          service={service}
-          environmentId={environmentId ?? null}
+          key={instance.instance.id}
+          service={instance.service}
+          instance={instance.instance}
+          deployment={deployments.find(d => d.instanceId === instance.instance.id)}
+          onSelect={() => onSelect?.(instance.service.id)}
         />
       ))}
       {loading && [0, 1, 2, 3, 4].map((i) => (
@@ -74,48 +88,80 @@ export default function ServiceGrid({
 
 const ServiceGridItem = ({
   service,
-  environmentId
+  instance,
+  deployment,
+  onSelect
 }: {
   service: t.Service
-  environmentId: string | null
+  instance: t.ServiceInstance
+  deployment?: t.Deployment
+  onSelect?: () => void
 }) => {
+
+  console.log({ service, instance, deployment })
 
   const idToken = Recoil.useRecoilValue(idTokenState)
   const deployRequest = useFetch(api.deployService)
 
-  const instance = service.instances.find(i => i.environmentId === environmentId)
-  const deployments = instance?.deployments ?? []
-  const hasBeenDeployed = deployments.length > 0
-  const cloudServiceLogoUrl = CLOUD_SERVICE_LOGOS[service.service]
-  const version = instance?.attributes.version ?? 'unknown'
+  const hasBeenDeployed = !!instance?.latestDeploymentId
 
   const deploy = async () => {
     deployRequest.fetch({
       idToken: idToken!,
       serviceId: service.id,
-      instanceId: instance?.id ?? ''
+      environmentId: instance.environmentId!
     })
+  }
+
+  const deployStarted = deployment
+    ? formatDistanceToNowStrict(new Date(deployment.startedAt), { addSuffix: true })
+    : null
+
+  const deployStatusColor = (): 'danger' | 'success' | 'warning' | 'disabled' => {
+    if (!deployment) return 'disabled'
+    const statusMap: Record<t.DeploymentStatus, 'danger' | 'success' | 'warning' | 'disabled'> = {
+      'canceled': 'danger',
+      'success': 'success',
+      'failed': 'danger',
+      'in_progress': 'warning',
+      'queued': 'warning',
+      'partial_success': 'danger'
+    }
+    return statusMap[deployment.status] as any
+  }
+
+  const statusColor = deployStatusColor()
+
+  const getVersion = (): string => {
+    const version = instance?.attributes.version
+    return version ? `v${version}` : ''
   }
 
   return (
     <Pane
-      backgroundColor="#FFFFFF"
+      backgroundColor={theme.colors.grey100}
       borderRadius={4}
       padding={majorScale(2)}
     >
       <Split
-        alignItems='center'
-        paddingBottom={majorScale(2)}
+        paddingBottom={majorScale(3)}
       >
-        <Image
-          src={cloudServiceLogoUrl}
-          height={23}
-          marginRight={majorScale(2)}
+        <Pane flex={1} marginRight={majorScale(2)}>
+          <Heading size={700}>{service.name}</Heading>
+          <Pane>
+            <Badge marginRight={majorScale(1)}>{service.type}</Badge>
+            <Badge marginRight={majorScale(1)}>{service.provider}</Badge>
+            <Badge>{service.service}</Badge>
+          </Pane>
+        </Pane>
+        <IconButton
+          icon={<HiOutlineEye />}
+          onClick={onSelect}
+          appearance='minimal'
         />
-        <Heading flex={1}>{service.name}</Heading>
       </Split>
-      <Split>
-        {!hasBeenDeployed && (
+      {!hasBeenDeployed && (
+        <Split>
           <Button
             flex={1}
             appearance='minimal'
@@ -124,8 +170,33 @@ const ServiceGridItem = ({
           >
             Deploy
           </Button>
-        )}
-      </Split>
+        </Split>
+      )}
+      {hasBeenDeployed && (
+        <>
+          <Split marginBottom={majorScale(1)}>
+            <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Link:</Heading>
+            <Text>{instance?.attributes?.baseUrl ?? 'none'}</Text>
+          </Split>
+          <Split marginBottom={majorScale(1)}>
+            <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Deployed:</Heading>
+            <Text>{capitalize(deployStarted)}</Text>
+          </Split>
+          <Split>
+            <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Status:</Heading>
+            <Badge marginRight={majorScale(1)}>{deployment?.status}</Badge>
+            <Blink $blink={statusColor === 'warning'}>
+              <StatusIndicator color={statusColor} />
+            </Blink>
+          </Split>
+          <Text flex={1}>{getVersion()}</Text>
+        </>
+      )}
     </Pane>
   )
+}
+
+const capitalize = (str: string | null) => {
+  if (!str) return ''
+  return `${str[0].toUpperCase()}${str.slice(1)}`
 }

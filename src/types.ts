@@ -29,7 +29,8 @@ export type ExobaseService = 'api'
   | 'static-website'
   | 'spa-app'
 
-export type ServiceKey = `${ExobaseService}:${CloudProvider}:${CloudService}:${Language}`
+export type StackKey = `${ExobaseService}:${CloudProvider}:${CloudService}:${Language}`
+export type ExobaseServiceKey = `${ExobaseService}:${CloudProvider}:${CloudService}`
 
 export interface Platform {
   id: string
@@ -77,17 +78,19 @@ export interface Service {
     repository: string
     branch: string
   }
-  key: ServiceKey
+  key: StackKey
   instances: ServiceInstance[]
 }
 
 export interface ServiceInstance {
   id: string
+  serviceId: string
   environmentId: string
   mute: boolean
   config: Record<string, string | number>
   deployments: Deployment[]
   attributes: Record<string, string | number>
+  latestDeploymentId: string | null
 }
 
 export type DeploymentStatus = 'queued'
@@ -102,7 +105,11 @@ export interface Deployment {
   platformId: string
   serviceId: string
   environmentId: string
+  instanceId: string
+  startedAt: number
+  finishedAt: number | null
   logs: string
+  status: DeploymentStatus
   ledger: DeploymentLedgerItem[]
 }
 
@@ -133,4 +140,23 @@ export type GCPProviderConfig = {
 
 export type HerokuProviderConfig = {
 
+}
+
+//
+//  STACK CONFIGS
+//
+
+export type StackConfigInputType = 'function-route'
+
+export interface StackConfig {
+  stack: ExobaseServiceKey
+  inputs: {
+    label: string
+    description: string
+    infoLink: string
+    key: string
+    type: StackConfigInputType
+    init: string | number | boolean
+    placeholder?: string
+  }[]
 }

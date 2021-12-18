@@ -1,3 +1,6 @@
 export { default as Header } from './Header'
 export { default as Sidebar } from './Sidebar'
 export { default as Logo } from './Logo'
+export { default as SceneHeading } from './SceneHeading'
+export { default as Blink } from './Blink'
+export { default as SceneLayout } from './SceneLayout'
