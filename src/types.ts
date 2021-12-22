@@ -1,116 +1,46 @@
+import * as t from '@exobase/client-js'
 
 export interface EntityIdentifier {
   id: string
   label: string
 }
 
-export type Language = 'typescript'
-  | 'javascript'
-  | 'python'
-  | 'swift'
+export type Language = t.Language
+export type CloudProvider = t.CloudProvider
+export type CloudService = t.CloudService
+export type ExobaseService = t.ExobaseService
+export type StackKey = t.StackKey
+export type ExobaseServiceKey = t.ExobaseServiceKey
+export type DeploymentStatus = t.DeploymentStatus
 
-export type CloudProvider = 'aws'
-  | 'gcp'
-  | 'vercel'
-  | 'azure'
-  | 'netlify'
-  | 'ibm'
-  | 'heroku'
-
-export type CloudService = 'lambda'
-  | 'ec2'
-  | 'ecs'
-  | 'cloud-run'
-  | 'cloud-function'
-
-export type ExobaseService = 'api'
-  | 'app'
-  | 'websocket-server'
-  | 'static-website'
-  | 'spa-app'
-
-export type StackKey = `${ExobaseService}:${CloudProvider}:${CloudService}:${Language}`
-export type ExobaseServiceKey = `${ExobaseService}:${CloudProvider}:${CloudService}`
-
-export interface Platform {
+export type Domain = {
   id: string
-  name: string
-  environments: Environment[]
-  services: Service[]
-  providers: {
-    aws: {
-      accessKeyId: '***************' | null
-      accessKeySecret: '***************' | null
-      region: string
-      configured: boolean
-    }
-    gcp: GCPProviderConfig & {
-      configured: boolean
-    }
-    vercel: VercelProviderConfig & {
-      configured: boolean
-    }
-    heroku: HerokuProviderConfig & {
-      configured: boolean
-    }
-  }
+  platformId: string
+  domain: string
+  provider: CloudProvider
+  latestDeploymentId: string | null
 }
+
+export type Platform = t.Platform
 
 export interface PlatformPreview {
   id: string
   name: string
 }
 
-export interface Environment {
-  id: string
-  name: string
-}
+export type Service = t.Service
 
-export interface Service {
-  id: string
-  name: string
-  platformId: string
-  provider: CloudProvider
-  service: CloudService
-  type: ExobaseService
-  language: Language
-  source: {
-    repository: string
-    branch: string
-  }
-  key: StackKey
-  instances: ServiceInstance[]
-}
+export type Deployment = t.Deployment
 
-export interface ServiceInstance {
-  id: string
-  serviceId: string
-  environmentId: string
-  mute: boolean
-  config: Record<string, string | number>
-  deployments: Deployment[]
-  attributes: Record<string, string | number>
-  latestDeploymentId: string | null
-}
-
-export type DeploymentStatus = 'queued'
-  | 'canceled'
-  | 'in_progress'
-  | 'success'
-  | 'partial_success'
-  | 'failed'
-
-export interface Deployment {
+export type DomainDeployment = {
   id: string
   platformId: string
-  serviceId: string
-  environmentId: string
-  instanceId: string
+  domainId: string
   startedAt: number
   finishedAt: number | null
-  logs: string
   status: DeploymentStatus
   ledger: DeploymentLedgerItem[]
+  logs: string
 }
 
 export interface DeploymentLedgerItem {

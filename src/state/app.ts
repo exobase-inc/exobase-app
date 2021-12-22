@@ -8,7 +8,6 @@ interface AppState {
   platforms: t.PlatformPreview[]
   currentPlatform: t.Platform | null
   currentPlatformId: string | null,
-  currentEnvironmentId: string | null
 }
 
 export const appState = atom<AppState>({
@@ -18,8 +17,7 @@ export const appState = atom<AppState>({
     idToken: null,
     platforms: [],
     currentPlatform: null,
-    currentPlatformId: null,
-    currentEnvironmentId: null
+    currentPlatformId: null
   }
 })
 
@@ -36,26 +34,6 @@ export const currentPlatformState = selector<t.Platform | null>({
   }
 })
 
-export const environmentListState = selector<t.Environment[]>({
-  key: 'exo.state.app.environment-list',
-  get: ({ get }) => {
-    return get(currentPlatformState)?.environments ?? []
-  }
-})
-
-export const currentEnvironmentIdState = selector<string>({
-  key: 'exo.state.app.current-envrionment-id',
-  get: ({ get }) => {
-    return get(appState).currentEnvironmentId ?? ''
-  },
-  set: ({ get, set }, currentEnvironmentId: string | any) => {
-    set(appState, {
-      ...get(appState),
-      currentEnvironmentId
-    })
-  }
-})
-
 export const currentPlatformIdState = selector<string>({
   key: 'exo.state.app.current-platform-id',
   get: ({ get }) => {
@@ -66,34 +44,6 @@ export const currentPlatformIdState = selector<string>({
       ...get(appState),
       currentPlatformId
     })
-  }
-})
-
-export const currentEnvironmentState = selector<t.Environment | null>({
-  key: 'exo.state.app.current-environment',
-  get: ({ get }) => {
-    const environmentId = get(currentEnvironmentIdState)
-    const environmentList = get(environmentListState)
-    return (environmentList ?? []).find(e => e.id === environmentId) ?? null
-  },
-  set: ({ get, set }, currentEnvironmentId: string | any) => {
-    set(appState, {
-      ...get(appState),
-      currentEnvironmentId
-    })
-  }
-})
-
-export const currentServiceInstancesState = selector<t.ServiceInstance[]>({
-  key: 'exo.state.app.current-service-instances',
-  get: ({ get }) => {
-    const environmentId = get(currentEnvironmentIdState)
-    const platform = get(currentPlatformState)
-    if (!platform) return []
-    return platform.services.reduce((acc, service) => {
-      const instance = service.instances.find(i => i.environmentId === environmentId)
-      return instance ? [...acc, instance] : acc
-    }, [] as t.ServiceInstance[])
   }
 })
 
@@ -135,16 +85,3 @@ export const userState = selector<t.User | null>({
     })
   }
 })
-
-// export const windowBreakpointState = selector<'xsmall' | 'small' | 'medium' | 'large' | 'xlarge' | 'xxlarge'>({
-//   key: 'ln.state.global-ui.window-breakpoint',
-//   get: ({ get }) => {
-//     return get(uiState).breakpoint
-//   },
-//   set: ({ get, set }, breakpoint: 'xsmall' | 'small' | 'medium' | 'large' | 'xlarge' | 'xxlarge' | any) => {
-//     set(uiState, {
-//       ...get(uiState),
-//       breakpoint
-//     })
-//   }
-// })

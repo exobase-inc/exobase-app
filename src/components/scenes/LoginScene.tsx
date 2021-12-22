@@ -5,7 +5,7 @@ import { Center, Split } from '../layout'
 import { Magic } from 'magic-sdk'
 import config from '../../config'
 import { useFetch } from '../../hooks'
-import * as api from '../../api'
+import api from '../../api'
 import { appState } from '../../state/app'
 import storage from '../../storage'
 import Logo from '../ui/Logo'
@@ -26,7 +26,7 @@ export default function LoginScene() {
   const setAppState = Recoil.useSetRecoilState(appState)
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
-  const loginUser = useFetch(api.loginOrCreateUser)
+  const loginUser = useFetch(api.auth.login)
 
   useEffect(() => {
     const knownUser = storage.latestUser.get()
@@ -50,7 +50,7 @@ export default function LoginScene() {
 
     const didToken = await magic.user.getIdToken()
 
-    const loginResponse = await loginUser.fetch({ didToken })
+    const loginResponse = await loginUser.fetch({}, { token: didToken })
     if (loginResponse.error) {
       console.error(loginResponse.error)
       setLoading(false)
@@ -58,15 +58,14 @@ export default function LoginScene() {
       return
     }
 
-    const { user, exp, idToken, platforms, platformId, environmentId } = loginResponse.data
+    const { user, exp, idToken, platforms, platformId } = loginResponse.data
 
     setAppState({
       user,
       idToken,
       platforms,
       currentPlatform: null,
-      currentPlatformId: platformId,
-      currentEnvironmentId: environmentId
+      currentPlatformId: platformId
     })
 
     storage.latestUser.set({ email })

@@ -15,8 +15,10 @@ import {
 
 
 export default function SceneLayout({
+  subtitle,
   children
 }: {
+  subtitle?: string
   children: React.ReactNode
 }) {
 
@@ -37,7 +39,7 @@ export default function SceneLayout({
       <Pane flex={1}>
         <Header
           title={currentPlatform?.name}
-          subtitle='Services'
+          subtitle={subtitle}
           platforms={platforms}
           currentPlatformId={currentPlatform?.id}
           user={user}

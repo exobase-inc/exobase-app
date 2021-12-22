@@ -12,7 +12,7 @@ import {
   toaster
 } from 'evergreen-ui'
 import { useFetch } from '../../hooks'
-import * as api from '../../api'
+import api from '../../api'
 import {
   idTokenState,
   currentPlatformIdState,
@@ -25,7 +25,7 @@ export default function PlatformScene() {
 
   const navigate = useNavigate()
   const idToken = Recoil.useRecoilValue(idTokenState)
-  const getPlatformRequest = useFetch(api.getPlatformById)
+  const getPlatformRequest = useFetch(api.platforms.getById)
   const currentPlatformId = Recoil.useRecoilValue(currentPlatformIdState)
   const setCurrentPlatform = Recoil.useSetRecoilState(currentPlatformState)
 
@@ -36,9 +36,8 @@ export default function PlatformScene() {
 
   const getPlatform = async () => {
     const { error, data } = await getPlatformRequest.fetch({
-      idToken: idToken!,
-      platformId: currentPlatformId!
-    })
+      id: currentPlatformId!
+    }, { token: idToken! })
     if (error) {
       console.error(error)
       toaster.danger(error.details)

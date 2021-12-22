@@ -9,29 +9,20 @@ import theme from '../../styles'
 import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict'
 import {
   Pane,
-  Strong,
   StatusIndicator,
   Text,
   Heading,
-  Popover,
   Button,
-  IconButton,
   Paragraph,
   majorScale,
-  Position,
-  Menu,
-  Tab,
-  Tablist,
   toaster,
   Badge
 } from 'evergreen-ui'
 import { HiPlusSm } from 'react-icons/hi'
 import { useFetch } from '../../hooks'
-import * as api from '../../api'
+import api from '../../api'
 import {
   idTokenState,
-  currentPlatformIdState,
-  currentEnvironmentState,
   currentPlatformState
 } from '../../state/app'
 import ServiceGrid from '../ui/ServiceGrid'
@@ -41,72 +32,72 @@ import { SceneLayout, Blink } from '../ui'
 export default function ServicesScene() {
 
   const navigate = useNavigate()
+
+  // Local State
   const [deployments, setDeployments] = useState<t.Deployment[]>([])
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
+
+  // Global State
   const idToken = Recoil.useRecoilValue(idTokenState)
-  const getPlatformRequest = useFetch(api.getPlatformById)
-  const getDeploymentsRequest = useFetch(api.getLatestDeploymentsInEnvironment)
-  const currentPlatformId = Recoil.useRecoilValue(currentPlatformIdState)
   const [currentPlatform, setCurrentPlatform] = Recoil.useRecoilState(currentPlatformState)
-  const [currentEnvironment, setCurrentEnvironmentId] = Recoil.useRecoilState(currentEnvironmentState)
 
-  useEffect(() => {
-    if (!currentPlatformId) return
-    getPlatform()
-  }, [currentPlatformId])
+  // API Requests
+  const getPlatformRequest = useFetch(api.platforms.getById)
+  const getDeploymentsRequest = useFetch(api.deployments.getLatest)
+  const deployRequest = useFetch(api.services.deploy)
 
-  useEffect(() => {
-    if (!currentPlatformId) return
-    if (!currentEnvironment?.id) return
-    getDeployments()
-  }, [currentPlatformId, currentEnvironment?.id])
+  const deployService = (service: t.Service) => {
+    deployRequest.fetch({
+      serviceId: service.id
+    }, { token: idToken! })
+  }
 
   const getPlatform = async () => {
     const { error, data } = await getPlatformRequest.fetch({
-      idToken: idToken!,
-      platformId: currentPlatformId!
-    })
+      id: currentPlatform?.id!
+    }, { token: idToken! })
     if (error) {
       console.error(error)
       toaster.danger(error.details)
+      return
     }
     setCurrentPlatform(data.platform)
-    const firstService = _.first(data.platform.services)
-    if (firstService) setSelectedServiceId(firstService.id)
   }
 
   const getDeployments = async () => {
-    const { error, data } = await getDeploymentsRequest.fetch({
-      idToken: idToken!,
-      environmentId: currentEnvironment?.id!
-    })
+    const { error, data } = await getDeploymentsRequest.fetch({}, { token: idToken! })
     if (error) {
       console.error(error)
       toaster.danger(error.details)
+      return
     }
     setDeployments(data.deployments)
   }
 
-  const services = currentPlatform?.services ?? []
-  const environments = currentPlatform?.environments ?? []
-  const currentService = services.find(s => s.id === selectedServiceId) ?? null
-  const currentInstance = currentService?.instances.find(i => i.environmentId === currentEnvironment?.id) ?? null
-  const currentDeployment = deployments.find(d => d.instanceId === currentInstance?.id) ?? null
 
-  const changeSelectedEnvironment = (newEnvironmentId: string) => () => {
-    setCurrentEnvironmentId(newEnvironmentId as any)
-  }
+  useEffect(() => {
+    if (!currentPlatform?.id) return
+    getPlatform()
+  }, [currentPlatform?.id])
+
+  useEffect(() => {
+    if (!currentPlatform?.id) return
+    getDeployments()
+  }, [currentPlatform?.id])
+
+  const services = currentPlatform?.services ?? []
+  const servicesWithDeployments = services.map(s => ({
+    ...s,
+    latestDeployment: deployments.find(d => d.serviceId === s?.id) ?? null
+  }))
+  const currentService = servicesWithDeployments.find(s => s.id === selectedServiceId) ?? null
 
   const createService = () => {
     navigate('/services/new')
   }
 
-  const handleServiceSelection = (serviceId: string) => {
-    setSelectedServiceId(serviceId)
-  }
-
-  const createNewEnvironment = () => {
-
+  const handleServiceSelection = (service: t.Service) => {
+    setSelectedServiceId(service.id)
   }
 
   return (
@@ -114,30 +105,10 @@ export default function ServicesScene() {
       <Split>
         <Pane flex={1}>
           <Split>
-            <Tablist flex={1} marginBottom={16} flexBasis={240} marginRight={24}>
-              {environments.map((env) => (
-                <Tab
-                  key={env.id}
-                  id={env.id}
-                  onSelect={changeSelectedEnvironment(env.id)}
-                  isSelected={currentEnvironment?.id === env.id}
-                  aria-controls={`panel-${_.dashCase(env.name)}`}
-                >
-                  {env.name}
-                </Tab>
-              ))}
-            </Tablist>
-            <Popover
-              position={Position.BOTTOM_RIGHT}
-              content={
-                <Menu>
-                  <Menu.Item onSelect={createNewEnvironment}>New Environment</Menu.Item>
-                  <Menu.Item onSelect={createService}>New Service</Menu.Item>
-                </Menu>
-              }
-            >
-              <IconButton appearance='primary' icon={<HiPlusSm />} />
-            </Popover>
+            <Pane flex={1} />
+            <Button appearance='primary' iconBefore={<HiPlusSm />} onClick={createService}>
+              Add Service
+            </Button>
           </Split>
           {services.length === 0 && (
             <Center height='50vh'>
@@ -148,7 +119,7 @@ export default function ServicesScene() {
               >
                 <Heading>No Services</Heading>
                 <Paragraph marginBottom={majorScale(2)}>
-                  This platform has no services in the current environment
+                  This platform has no service
                 </Paragraph>
                 <Pane>
                   <Button onClick={createService}>Create</Button>
@@ -156,12 +127,11 @@ export default function ServicesScene() {
               </Pane>
             </Center>
           )}
-          {services.length > 0 && (
+          {servicesWithDeployments.length > 0 && (
             <ServiceGrid
-              deployments={deployments}
               services={services}
-              environmentId={currentEnvironment?.id}
               onSelect={handleServiceSelection}
+              onDeploy={deployService}
             />
           )}
         </Pane>
@@ -169,11 +139,12 @@ export default function ServicesScene() {
           width='33%'
           paddingLeft={majorScale(4)}
         >
-          <ServiceDetailsPanel
-            deployment={currentDeployment}
-            service={currentService}
-            environmentId={currentEnvironment?.id ?? null}
-          />
+          {currentService && (
+            <ServiceDetailsPanel
+              service={currentService}
+              onDeploy={() => deployService(currentService)}
+            />
+          )}
         </Pane>
       </Split>
     </SceneLayout>
@@ -182,17 +153,13 @@ export default function ServicesScene() {
 
 const ServiceDetailsPanel = ({
   service,
-  environmentId,
-  deployment
+  onDeploy
 }: {
   service: t.Service | null
-  environmentId: string | null
-  deployment: t.Deployment | null
+  onDeploy: () => void
 }) => {
 
-  const instance = (!!service && !!environmentId)
-    ? service.instances.find(i => i.environmentId === environmentId)
-    : null
+  const { latestDeployment: deployment } = service ?? {}
 
   const deployStarted = deployment
     ? formatDistanceToNowStrict(new Date(deployment.startedAt), { addSuffix: true })
@@ -214,7 +181,7 @@ const ServiceDetailsPanel = ({
   const statusColor = deployStatusColor()
 
   const getVersion = (): string => {
-    const version = instance?.attributes.version
+    const version = deployment?.attributes.version
     return version ? `v${version}` : ''
   }
 
@@ -225,12 +192,7 @@ const ServiceDetailsPanel = ({
       borderRadius={4}
       minHeight='60vh'
     >
-      {!instance && (
-        <Pane>
-          No service selected
-        </Pane>
-      )}
-      {service && instance && (
+      {service && (
         <Pane>
           <Pane>
             <Heading size={800}>{service.name}</Heading>
@@ -243,7 +205,7 @@ const ServiceDetailsPanel = ({
           <Pane marginBottom={majorScale(1)}>
             <Split marginBottom={majorScale(1)}>
               <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Link:</Heading>
-              <Text>{instance?.attributes?.baseUrl ?? 'none'}</Text>
+              <Text>{deployment?.attributes?.baseUrl ?? 'none'}</Text>
             </Split>
             <Split marginBottom={majorScale(1)}>
               <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Deployed:</Heading>
@@ -257,6 +219,9 @@ const ServiceDetailsPanel = ({
               </Blink>
             </Split>
             <Text flex={1}>{getVersion()}</Text>
+          </Pane>
+          <Pane marginBottom={majorScale(1)}>
+            <Button onClick={onDeploy}>Redeploy</Button>
           </Pane>
         </Pane>
       )}

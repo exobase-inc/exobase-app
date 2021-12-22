@@ -1,32 +1,32 @@
 import { useState } from 'react'
-import { ApiResponse, ApiError } from '../api'
+import type { ApiError, ApiResponse, Auth } from '@exobase/client-js'
 
 
-interface FetchState <K, T> {
+interface FetchState<TArgs, TResult> {
     loading: boolean
-    data: null | T
+    data: null | TResult
     error: null | ApiError
     started: boolean
     complete: boolean
     pending: boolean
-    fetch: (arg: K) => Promise<ApiResponse<T>>
+    fetch: (args: TArgs, auth?: Auth) => Promise<ApiResponse<TResult>>
 }
 
-export const useFetch = <T, K> (fetchFunc: (arg: K) => Promise<ApiResponse<T>>): FetchState<K, T> => {
+export const useFetch = <TArgs, TResult>(fetchFunc: (args: TArgs, auth?: Auth) => Promise<ApiResponse<TResult>>): FetchState<TArgs, TResult> => {
 
-    const [state, setState] = useState<FetchState<K, T>>({
+    const [state, setState] = useState<FetchState<TArgs, TResult>>({
         loading: false,
         data: null,
         error: null,
         started: false,
         complete: false,
         pending: false,
-        fetch: () => new Promise(() => {})
+        fetch: (() => new Promise(r => r({}))) as any
     })
 
-    const fetch = async (arg: K): Promise<ApiResponse<T>> => {
+    const fetch = async (args: TArgs, auth?: Auth): Promise<ApiResponse<TResult>> => {
         setState({ ...state, loading: true, started: true })
-        const { error, data } = await fetchFunc(arg)
+        const { error, data } = await fetchFunc(args, auth)
         if (error) {
             setState({
                 ...state,

@@ -1,63 +1,81 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import Recoil from 'recoil'
-import { Center } from '../layout'
+import { Split, Center } from '../layout'
 import {
   Pane,
   Heading,
   Button,
   Paragraph,
   majorScale,
-  toaster
+  toaster,
+  Badge,
+  Spinner,
+  Table,
+  StatusIndicator
 } from 'evergreen-ui'
 import { useFetch } from '../../hooks'
-import * as api from '../../api'
+import api from '../../api'
 import {
   idTokenState,
   currentPlatformIdState,
-  currentEnvironmentState,
   currentPlatformState
 } from '../../state/app'
-import ServiceGrid from '../ui/ServiceGrid'
 import { SceneLayout } from '../ui'
+import { HiPlus } from 'react-icons/hi'
+import * as t from '../../types'
 
 
 export default function DomainsScene() {
 
   const navigate = useNavigate()
+  const [searchTerm, setSearchTerm] = useState('')
   const idToken = Recoil.useRecoilValue(idTokenState)
-  const getPlatformRequest = useFetch(api.getPlatformById)
+  const getDeploymentsRequest = useFetch(api.domainDeployment.getLatest)
   const currentPlatformId = Recoil.useRecoilValue(currentPlatformIdState)
   const [currentPlatform, setCurrentPlatform] = Recoil.useRecoilState(currentPlatformState)
-  const [currentEnvironment, setCurrentEnvironmentId] = Recoil.useRecoilState(currentEnvironmentState)
 
   useEffect(() => {
     if (!currentPlatformId) return
-    getPlatform()
+    getDomainDeployments()
   }, [currentPlatformId])
 
-  const getPlatform = async () => {
-    const { error, data } = await getPlatformRequest.fetch({
-      idToken: idToken!,
-      platformId: currentPlatformId!
+  const getDomainDeployments = async () => {
+    const { error } = await getDeploymentsRequest.fetch({}, {
+      token: idToken!
     })
     if (error) {
       console.error(error)
       toaster.danger(error.details)
     }
-    setCurrentPlatform(data.platform)
   }
-
-  const services = currentPlatform?.services ?? []
 
   const setupDomain = () => {
-    navigate('/services/new')
+    navigate('/domains/new')
   }
 
+  const updateSelectedDomain = () => {
+
+  }
+
+  const deployments = getDeploymentsRequest.data?.deployments ?? []
+  const domains = (currentPlatform?.domains ?? []).map((domain) => {
+    return {
+      domain,
+      deployment: deployments.find(d => d.domainId === domain.id) ?? null
+    }
+  })
+
+  const filteredDomains = domains.length > 0 && !!searchTerm
+    ? domains.filter(d => d.domain.domain.toLowerCase().includes(searchTerm.toLowerCase()))
+    : domains
+
   return (
-    <SceneLayout>
-      {services.length === 0 && (
+    <SceneLayout
+      subtitle='Domains'
+    >
+      {domains.length === 0 && (
         <Center height='50vh'>
           <Pane
             backgroundColor='#FFFFFF'
@@ -74,12 +92,80 @@ export default function DomainsScene() {
           </Pane>
         </Center>
       )}
-      {services.length > 0 && (
-        <ServiceGrid
-          services={services}
-          environmentId={currentEnvironment?.id}
-        />
+      {domains.length > 0 && (
+        <Split>
+          <Pane flex={1}>
+            <Split marginBottom={majorScale(2)}>
+              <Pane flex={1} />
+              <Button onClick={setupDomain} iconBefore={<HiPlus />}>Add</Button>
+            </Split>
+            <DomainTable
+              searchTerm={searchTerm}
+              onSearchTermChange={setSearchTerm}
+              onDomainSelected={updateSelectedDomain}
+              domains={filteredDomains}
+              loading={getDeploymentsRequest.loading}
+            />
+          </Pane>
+          <Pane
+            width='33%'
+            paddingLeft={majorScale(4)}
+          >
+            
+          </Pane>
+        </Split>
       )}
     </SceneLayout>
   )
 }
+
+export const DomainTable = ({
+  searchTerm,
+  onSearchTermChange,
+  onDomainSelected,
+  domains,
+  loading
+}: {
+  searchTerm: string
+  onSearchTermChange: (st: string) => void
+  onDomainSelected: (d: t.Domain) => void
+  domains: { domain: t.Domain, deployment: t.DomainDeployment | null }[]
+  loading: boolean
+}) => {
+
+  return (
+    <Table>
+      <Table.Head>
+        <Table.SearchHeaderCell
+          value={searchTerm}
+          onChange={onSearchTermChange}
+        />
+        <Table.TextHeaderCell>Cloud</Table.TextHeaderCell>
+        <Table.TextHeaderCell>Status</Table.TextHeaderCell>
+      </Table.Head>
+      <Table.Body height={240}>
+        {domains.map(({ domain, deployment }) => (
+          <Table.Row key={domain.id} isSelectable onSelect={() => onDomainSelected(domain)}>
+            <Table.TextCell>{domain.domain}</Table.TextCell>
+            <Table.Cell><Badge>{domain.provider}</Badge></Table.Cell>
+            {loading && (
+              <Table.Cell>
+                <Spinner />
+              </Table.Cell>
+            )}
+            {!loading && deployment && (
+              <Table.Cell>
+                <StatusIndicator>{deployment.status}</StatusIndicator>
+              </Table.Cell>
+            )}
+            {!loading && !deployment && (
+              <Table.TextCell></Table.TextCell>
+            )}
+          </Table.Row>
+        ))}
+      </Table.Body>
+    </Table>
+  )
+}
+
+

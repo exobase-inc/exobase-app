@@ -1,12 +1,7 @@
 import * as t from '../../types'
-import Recoil from 'recoil'
 import Skeleton from 'react-loading-skeleton'
-import { Split, Center } from '../layout'
-import { PROVIDER_LOGOS, CLOUD_SERVICE_LOGOS } from '../../const'
-import { HiCog, HiOutlineDotsVertical, HiOutlineEye, HiUpload } from 'react-icons/hi'
-import { idTokenState } from '../../state/app'
-import { useFetch } from '../../hooks'
-import * as api from '../../api'
+import { Split } from '../layout'
+import { HiOutlineEye, HiUpload } from 'react-icons/hi'
 import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict'
 import { Blink } from '../ui'
 import theme from '../../styles'
@@ -18,31 +13,21 @@ import {
   Button,
   IconButton,
   Badge,
-  Strong,
   StatusIndicator
 } from 'evergreen-ui'
 
 
 export default function ServiceGrid({
   loading = false,
-  environmentId,
-  deployments = [],
   services,
+  onDeploy,
   onSelect
 }: {
   loading?: boolean
-  environmentId?: string | null
-  deployments?: t.Deployment[]
   services: t.Service[]
-  onSelect?: (serviceId: string) => void
+  onDeploy?: (service: t.Service) => void
+  onSelect?: (service: t.Service) => void
 }) {
-  const instancesInEnvironment = services.reduce((acc, service) => {
-    const instance = service.instances.find(i => i.environmentId === environmentId)
-    return instance ? [...acc, { instance, service }] : acc
-  }, [] as { instance: t.ServiceInstance, service: t.Service }[])
-  console.log({ deployments })
-  console.log({ services })
-  console.log({ instancesInEnvironment })
   return (
     <Pane
       flex={1}
@@ -51,13 +36,12 @@ export default function ServiceGrid({
       columnGap={majorScale(4)}
       rowGap={majorScale(4)}
     >
-      {!loading && instancesInEnvironment.map(instance => (
+      {!loading && services.map(service => (
         <ServiceGridItem
-          key={instance.instance.id}
-          service={instance.service}
-          instance={instance.instance}
-          deployment={deployments.find(d => d.instanceId === instance.instance.id)}
-          onSelect={() => onSelect?.(instance.service.id)}
+          key={service.id}
+          service={service}
+          onSelect={() => onSelect?.(service)}
+          onDeploy={() => onDeploy?.(service)}
         />
       ))}
       {loading && [0, 1, 2, 3, 4].map((i) => (
@@ -88,30 +72,16 @@ export default function ServiceGrid({
 
 const ServiceGridItem = ({
   service,
-  instance,
-  deployment,
-  onSelect
+  onSelect,
+  onDeploy
 }: {
   service: t.Service
-  instance: t.ServiceInstance
-  deployment?: t.Deployment
   onSelect?: () => void
+  onDeploy?: () => void
 }) => {
 
-  console.log({ service, instance, deployment })
-
-  const idToken = Recoil.useRecoilValue(idTokenState)
-  const deployRequest = useFetch(api.deployService)
-
-  const hasBeenDeployed = !!instance?.latestDeploymentId
-
-  const deploy = async () => {
-    deployRequest.fetch({
-      idToken: idToken!,
-      serviceId: service.id,
-      environmentId: instance.environmentId!
-    })
-  }
+  const { latestDeployment: deployment } = service
+  const hasBeenDeployed = !!deployment
 
   const deployStarted = deployment
     ? formatDistanceToNowStrict(new Date(deployment.startedAt), { addSuffix: true })
@@ -133,7 +103,7 @@ const ServiceGridItem = ({
   const statusColor = deployStatusColor()
 
   const getVersion = (): string => {
-    const version = instance?.attributes.version
+    const version = deployment?.attributes.version
     return version ? `v${version}` : ''
   }
 
@@ -166,7 +136,7 @@ const ServiceGridItem = ({
             flex={1}
             appearance='minimal'
             iconBefore={<HiUpload size={20} />}
-            onClick={deploy}
+            onClick={onDeploy}
           >
             Deploy
           </Button>
@@ -176,7 +146,7 @@ const ServiceGridItem = ({
         <>
           <Split marginBottom={majorScale(1)}>
             <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Link:</Heading>
-            <Text>{instance?.attributes?.baseUrl ?? 'none'}</Text>
+            <Text>{deployment?.attributes?.baseUrl ?? 'none'}</Text>
           </Split>
           <Split marginBottom={majorScale(1)}>
             <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Deployed:</Heading>

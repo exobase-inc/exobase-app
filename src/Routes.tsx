@@ -5,8 +5,9 @@ import { useNavigate } from 'react-router-dom'
 import storage from './storage'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { idTokenState, appState } from './state/app'
-import * as api from './api'
+import api from './api'
 import { useFetch } from './hooks'
+import { toaster } from 'evergreen-ui'
 
 import ServicesScene from './components/scenes/ServicesScene'
 import CreateServiceScene from './components/scenes/CreateServiceScene'
@@ -14,6 +15,8 @@ import LoginScene from './components/scenes/LoginScene'
 import ProviderScene from './components/scenes/ProviderScene'
 import DomainsScene from './components/scenes/DomainsScene'
 import PlatformScene from './components/scenes/PlatformScene'
+import CreateDomainScene from './components/scenes/CreateDomainScene'
+import GithubAppInstalledScene from './components/scenes/GithubAppInstalledScene'
 
 const GuardAuth = ({
   children
@@ -41,9 +44,11 @@ const GuardState = ({
 }: {
   children: React.ReactNode
 }) => {
-  const login = useFetch(api.loginOrCreateUser)
+  const login = useFetch(api.auth.login)
+  const getPlatformRequest = useFetch(api.platforms.getById)
   const setAppState = Recoil.useSetRecoilState(appState)
   const idToken = Recoil.useRecoilValue(idTokenState)
+
   const navigate = useNavigate()
 
   const tryHydrateState = async () => {
@@ -72,6 +77,18 @@ const GuardState = ({
 
     if (loginResponse.error) {
       console.error(loginResponse.error)
+      toaster.danger(loginResponse.error.details)
+      navigate('/login')
+      return
+    }
+
+    const platformResponse = await getPlatformRequest.fetch({
+      id: loginResponse.data.platformId
+    }, { token: loginResponse.data.idToken })
+
+    if (platformResponse.error) {
+      console.error(platformResponse.error)
+      toaster.danger(platformResponse.error.details)
       navigate('/login')
       return
     }
@@ -80,9 +97,8 @@ const GuardState = ({
       user: loginResponse.data.user,
       idToken: loginResponse.data.idToken,
       platforms: loginResponse.data.platforms,
-      currentPlatform: null,
-      currentPlatformId: loginResponse.data.platformId,
-      currentEnvironmentId: loginResponse.data.environmentId
+      currentPlatform: platformResponse.data.platform,
+      currentPlatformId: loginResponse.data.platformId
     })
 
     storage.token.set({ 
@@ -141,6 +157,16 @@ export default function AppRoutes() {
               <DomainsScene />
             </GuardState>
           </GuardAuth>
+        )} />
+        <Route path="/domains/new" element={(
+          <GuardAuth>
+            <GuardState>
+              <CreateDomainScene />
+            </GuardState>
+          </GuardAuth>
+        )} />
+        <Route path="/github-app-installed" element={(
+          <GithubAppInstalledScene />
         )} />
         <Route path="/login" element={<LoginScene />} />
       </Routes>

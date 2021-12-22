@@ -5,7 +5,7 @@ import Recoil from 'recoil'
 import { currentPlatformState, idTokenState } from '../../state/app'
 import { PROVIDER_LOGOS } from '../../const'
 import { Center, Stack } from '../layout'
-import * as api from '../../api'
+import api from '../../api'
 import { useFetch } from '../../hooks'
 import {
   majorScale,
@@ -48,7 +48,7 @@ export default function ProviderGrid() {
         comingSoon
       />
       <ProviderGridItem
-        provider="heroku"
+        provider="azure"
         comingSoon
       />
     </Pane>
@@ -99,15 +99,14 @@ const VercelAuthForm = ({
   const isConfigured = platform?.providers?.vercel?.configured ?? false
   const [token, setToken] = useState<string | null>(null)
   const value = token ?? (isConfigured ? '******************' : '')
-  const updateVercelAuth = useFetch(api.updateProviderConfig)
+  const updateVercelAuth = useFetch(api.platforms.updateProvider)
   const submit = async () => {
     const { error } = await updateVercelAuth.fetch({
-      idToken: idToken!,
       provider: 'vercel',
       config: {
         token: token!
       }
-    })
+    }, { token: idToken! })
     if (error) {
       console.error(error)
       toaster.danger(error.details)
@@ -155,18 +154,17 @@ const AWSConfigForm = ({
   const [accessKeyId, setAccessKeyId] = useState<string>(config.accessKeyId ?? '')
   const [accessKeySecret, setAccessKeySecret] = useState<string>(config.accessKeySecret ?? '')
   const [region, setRegion] = useState<string>(config.region)
-  const updateAwsConfig = useFetch(api.updateProviderConfig)
+  const updateAwsConfig = useFetch(api.platforms.updateProvider)
 
   const submit = async () => {
     const { error } = await updateAwsConfig.fetch({
-      idToken: idToken!,
       provider: 'aws',
       config: {
         accessKeyId,
         accessKeySecret,
         region
       }
-    })
+    }, { token: idToken! })
     if (error) {
       console.error(error)
       toaster.danger(error.details)

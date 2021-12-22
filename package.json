@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
+    "@exobase/client-js": "^0.0.10",
     "@hookform/resolvers": "^2.8.4",
     "date-fns": "^2.27.0",
     "evergreen-ui": "^6.6.3",

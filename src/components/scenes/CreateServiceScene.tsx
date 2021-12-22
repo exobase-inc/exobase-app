@@ -16,9 +16,9 @@ import {
   Link,
   Paragraph
 } from 'evergreen-ui'
-import { currentEnvironmentState, currentPlatformState, idTokenState } from '../../state/app'
+import { currentPlatformState, idTokenState } from '../../state/app'
 import { useFetch, useFormation } from '../../hooks'
-import * as api from '../../api'
+import api from '../../api'
 import * as yup from 'yup'
 import { SceneLayout } from '../ui'
 import theme from '../../styles'
@@ -46,8 +46,7 @@ export default function CreateServiceScene() {
   const navigate = useNavigate()
   const idToken = Recoil.useRecoilValue(idTokenState)
   const currentPlatform = Recoil.useRecoilValue(currentPlatformState)
-  const currentProject = Recoil.useRecoilValue(currentEnvironmentState)
-  const createService = useFetch(api.createService)
+  const createService = useFetch(api.services.create)
   const [state, setState] = useState<State>({
     step: 'language',
     language: null,
@@ -102,26 +101,23 @@ export default function CreateServiceScene() {
 
   const submit = async (config: GeneralData) => {
 
-    if (!currentPlatform || !currentProject) return
+    if (!currentPlatform) return
 
     const { error } = await createService.fetch({
-      idToken: idToken!,
-      service: {
-        name: config.name,
-        source: {
-          repository: config.repository,
-          branch: config.branch
-        },
-        service: state.service!,
-        language: state.language!,
-        type: state.type!,
-        provider: state.provider!,
-        config: {
-          type: serviceKey,
-          ...state.config
-        }
+      name: config.name,
+      source: {
+        repository: config.repository,
+        branch: config.branch
+      },
+      service: state.service!,
+      language: state.language!,
+      type: state.type!,
+      provider: state.provider!,
+      config: {
+        type: serviceKey,
+        ...state.config
       }
-    })
+    }, { token: idToken! })
 
     if (error) {
       console.error(error)
@@ -149,7 +145,7 @@ export default function CreateServiceScene() {
           <Pane width='100%'>
             <Heading flex={1} size={800}>{title}</Heading>
             <Paragraph>
-              Create a new service in the <Strong>{currentProject?.name}</Strong> environment of the <Strong>{currentPlatform?.name}</Strong> platform.
+              Create a new service in the <Strong>{currentPlatform?.name}</Strong> platform.
             </Paragraph>
           </Pane>
           {state.step === 'language' && (
@@ -327,8 +323,8 @@ const CloudProviderForm = ({
         <GridChoice onClick={select('vercel')}>
           <Text>Vercel</Text>
         </GridChoice>
-        <GridChoice onClick={select('heroku')}>
-          <Text>Heroku</Text>
+        <GridChoice onClick={select('azure')}>
+          <Text>Azure</Text>
         </GridChoice>
       </Pane>
       <Split>
@@ -361,16 +357,16 @@ const ServiceTypeForm = ({
         paddingTop={majorScale(4)}
         paddingBottom={majorScale(4)}
       >
-        <GridChoice onClick={select('static-website')}>
+        <GridChoice onClick={select('api')}>
           <Text textAlign='center'>Static<br />Website</Text>
         </GridChoice>
         <GridChoice onClick={select('api')}>
           <Text textAlign='center'>API</Text>
         </GridChoice>
-        <GridChoice onClick={select('websocket-server')}>
+        <GridChoice onClick={select('api')}>
           <Text textAlign='center'>Websocket<br />Server</Text>
         </GridChoice>
-        <GridChoice onClick={select('spa-app')}>
+        <GridChoice onClick={select('app')}>
           <Text textAlign='center'>SPA App</Text>
         </GridChoice>
       </Pane>
