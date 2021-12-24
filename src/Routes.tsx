@@ -73,7 +73,7 @@ const GuardState = ({
       return
     }
     // Fetch all the user data with the token
-    const loginResponse = await login.fetch({ didToken: token.didToken })
+    const loginResponse = await login.fetch({}, { token: token.didToken })
 
     if (loginResponse.error) {
       console.error(loginResponse.error)

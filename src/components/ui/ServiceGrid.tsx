@@ -1,5 +1,5 @@
 import * as t from '../../types'
-import Skeleton from 'react-loading-skeleton'
+import Shimmer from './Shimmer'
 import { Split } from '../layout'
 import { HiOutlineEye, HiUpload } from 'react-icons/hi'
 import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict'
@@ -47,19 +47,19 @@ export default function ServiceGrid({
       {loading && [0, 1, 2, 3, 4].map((i) => (
         <Pane key={i}>
           <Pane marginBottom={8}>
-            <Skeleton
+            <Shimmer
               width='100%'
               height={170}
             />
           </Pane>
           <Pane marginBottom={8}>
-            <Skeleton
+            <Shimmer
               width='40%'
               height={24}
             />
           </Pane>
           <Pane>
-            <Skeleton
+            <Shimmer
               width='67%'
               height={24}
             />

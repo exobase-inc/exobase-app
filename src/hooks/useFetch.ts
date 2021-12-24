@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { ApiError, ApiResponse, Auth } from '@exobase/client-js'
 
 
-interface FetchState<TArgs, TResult> {
+export interface FetchState<TArgs, TResult> {
     loading: boolean
     data: null | TResult
     error: null | ApiError

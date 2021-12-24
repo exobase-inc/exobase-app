@@ -21,6 +21,8 @@ export type Domain = {
   latestDeploymentId: string | null
 }
 
+export type ServiceSource = t.ServiceSource
+
 export type Platform = t.Platform
 
 export interface PlatformPreview {
