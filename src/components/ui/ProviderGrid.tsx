@@ -1,3 +1,4 @@
+import _ from 'radash'
 import { useState } from 'react'
 import * as t from '../../types'
 import { useCurrentWidth } from 'react-socks'
@@ -34,14 +35,15 @@ export default function ProviderGrid() {
       paddingBottom={majorScale(4)}
     >
       <ProviderGridItem
-        provider="vercel"
-      >
-        <VercelAuthForm platform={platform} idToken={idToken} />
-      </ProviderGridItem>
-      <ProviderGridItem
         provider="aws"
       >
         <AWSConfigForm platform={platform} idToken={idToken} />
+      </ProviderGridItem>
+      <ProviderGridItem
+        provider="vercel"
+        comingSoon
+      >
+        <VercelAuthForm platform={platform} idToken={idToken} />
       </ProviderGridItem>
       <ProviderGridItem
         provider="gcp"
@@ -70,6 +72,8 @@ const ProviderGridItem = ({
       backgroundColor="#FFFFFF"
       borderRadius={4}
       padding={majorScale(2)}
+      elevation={2}
+      minHeight={400}
     >
       <Center marginBottom={majorScale(3)} flex={1}>
         <Image
@@ -170,6 +174,9 @@ const AWSConfigForm = ({
       toaster.danger(error.details)
       return
     }
+    toaster.success('AWS has been configured')
+    setAccessKeyId('***************')
+    setAccessKeySecret('***************')
   }
   return (
     <Pane>
@@ -197,7 +204,7 @@ const AWSConfigForm = ({
         onClick={submit}
         width='100%'
         appearance='primary'
-        disabled={updateAwsConfig.loading}
+        disabled={updateAwsConfig.loading || accessKeyId.startsWith('****') || accessKeySecret.startsWith('****')}
         isLoading={updateAwsConfig.loading}
       >
         {isConfigured ? 'Update' : 'Setup'}

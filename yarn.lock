@@ -1366,20 +1366,20 @@
     "@ethersproject/rlp" "^5.5.0"
     "@ethersproject/signing-key" "^5.5.0"
 
-"@exobase/api@^0.0.4":
-  version "0.0.4"
-  resolved "https://registry.yarnpkg.com/@exobase/api/-/api-0.0.4.tgz#f20f25132be08632d9982b0b5295d6fd6c6e8da8"
-  integrity sha512-k51nqwKlMPTIkm6aUjUGn1a84rzMIn68lQc3+ggBZ//ILeKNZ/5qiL5AGER/DJl6WezyQeBpqDz9KPYUfsfZiw==
+"@exobase/api@^0.0.6":
+  version "0.0.6"
+  resolved "https://registry.yarnpkg.com/@exobase/api/-/api-0.0.6.tgz#326ce5145057998110173f1d65ae100e6f38e008"
+  integrity sha512-lIWmmcOM1SWDlvmLZb93nhCBsW45EHCWZDmrBOhkMsQWtWSelBOiDFLLwJU7pzRP9rQNOHsy+zM3Khwd1FJbew==
   dependencies:
     axios "^0.24.0"
     radash "^1.2.0"
 
-"@exobase/client-js@^0.0.14":
-  version "0.0.14"
-  resolved "https://registry.yarnpkg.com/@exobase/client-js/-/client-js-0.0.14.tgz#e5c89885fa9f4acfa17017bfe5c704e2ac96228f"
-  integrity sha512-vVhg34QnCBZHezipKSFFzSEllCin0doFUu8lNWVVAV12qFM6xk9/b4/ZmaFrc/9dhpKs3eoDt6PJO4EVxfMUzg==
+"@exobase/client-js@^0.0.16":
+  version "0.0.16"
+  resolved "https://registry.yarnpkg.com/@exobase/client-js/-/client-js-0.0.16.tgz#c93c4f6c5f724b721b43934cfa10e3a79114c67a"
+  integrity sha512-hz246IunlWUimHysCGj0iuqMKozmG/wGcN7HHkT1PUWgi7OTu217+Yc3DqNSYLL45WWNHMAO6ggbNAbMneQywQ==
   dependencies:
-    "@exobase/api" "^0.0.4"
+    "@exobase/api" "^0.0.6"
 
 "@gar/promisify@^1.0.1":
   version "1.1.2"

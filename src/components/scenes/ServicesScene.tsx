@@ -46,10 +46,14 @@ export default function ServicesScene() {
   const getDeploymentsRequest = useFetch(api.deployments.getLatest)
   const deployRequest = useFetch(api.services.deploy)
 
-  const deployService = (service: t.Service) => {
-    deployRequest.fetch({
+  const deployService = async (service: t.Service) => {
+    const { error } = await deployRequest.fetch({
       serviceId: service.id
     }, { token: idToken! })
+    if (error) {
+      console.error(error)
+      toaster.danger(error.details)
+    }
   }
 
   const getPlatform = async () => {
