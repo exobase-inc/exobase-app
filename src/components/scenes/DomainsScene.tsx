@@ -32,9 +32,9 @@ export default function DomainsScene() {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const idToken = Recoil.useRecoilValue(idTokenState)
-  const getDeploymentsRequest = useFetch(api.domainDeployment.getLatest)
+  const getDeploymentsRequest = useFetch(api.domainDeployments.getLatest)
   const currentPlatformId = Recoil.useRecoilValue(currentPlatformIdState)
-  const [currentPlatform, setCurrentPlatform] = Recoil.useRecoilState(currentPlatformState)
+  const currentPlatform = Recoil.useRecoilValue(currentPlatformState)
 
   useEffect(() => {
     if (!currentPlatformId) return
@@ -66,6 +66,8 @@ export default function DomainsScene() {
       deployment: deployments.find(d => d.domainId === domain.id) ?? null
     }
   })
+
+  console.log({ domains, deployments })
 
   const filteredDomains = domains.length > 0 && !!searchTerm
     ? domains.filter(d => d.domain.domain.toLowerCase().includes(searchTerm.toLowerCase()))

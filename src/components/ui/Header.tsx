@@ -29,7 +29,7 @@ export default function Header({
 }) {
 
   return (
-    <Split padding={majorScale(4)} alignItems='center'>
+    <Split padding={majorScale(4)} alignItems='center' borderBottom="muted">
       <Pane flex={1}>
         <Split alignItems='center'>
           <Heading

@@ -3,24 +3,25 @@ import * as t from '../../types'
 import { useNavigate } from 'react-router'
 import Recoil from 'recoil'
 import { Split, Center } from '../layout'
-import styled from 'styled-components'
 import {
   Pane,
   Heading,
   Button,
   TextInputField,
-  Text,
   toaster,
   Strong,
   majorScale,
   Paragraph
 } from 'evergreen-ui'
-import { currentPlatformState, idTokenState } from '../../state/app'
+import { 
+  currentPlatformState, 
+  idTokenState, 
+  addDomainState 
+} from '../../state/app'
 import { useFetch, useFormation } from '../../hooks'
 import api from '../../api'
 import * as yup from 'yup'
-import { SceneLayout } from '../ui'
-import theme from '../../styles'
+import { SceneLayout, GridBoxSelect } from '../ui'
 
 
 type Step = 'provider' | 'domain'
@@ -35,7 +36,8 @@ export default function CreateServiceScene() {
   const navigate = useNavigate()
   const idToken = Recoil.useRecoilValue(idTokenState)
   const currentPlatform = Recoil.useRecoilValue(currentPlatformState)
-  const addDomain = useFetch(api.domains.add)
+  const addDomainRequest = useFetch(api.domains.add)
+  const addDomainAction = Recoil.useSetRecoilState(addDomainState)
   const [state, setState] = useState<State>({
     step: 'provider',
     provider: null
@@ -54,7 +56,7 @@ export default function CreateServiceScene() {
 
     if (!currentPlatform) return
 
-    const { error } = await addDomain.fetch({
+    const { error, data } = await addDomainRequest.fetch({
       domain: name,
       provider: state.provider!
     }, { token: idToken! })
@@ -64,7 +66,7 @@ export default function CreateServiceScene() {
       toaster.danger(error.details)
       return
     }
-
+    addDomainAction(data.domain)
     navigate('/domains')
   }
 
@@ -99,6 +101,7 @@ export default function CreateServiceScene() {
             <DomainForm
               onBack={setStep('provider')}
               onSubmit={submit}
+              loading={addDomainRequest.loading}
             />
           )}
         </Pane>
@@ -113,9 +116,11 @@ type GeneralData = {
 }
 
 function DomainForm({
+  loading = false,
   onSubmit,
   onBack
 }: {
+  loading?: boolean
   onSubmit: (data: GeneralData) => void
   onBack: () => void
 }) {
@@ -150,45 +155,12 @@ function DomainForm({
         <Button
           onClick={form.createHandler(handleSubmit)}
           appearance='primary'
+          isLoading={loading}
         >
           Finish
         </Button>
       </Split>
     </>
-  )
-}
-
-const GridChoicePane = styled(Center)`
-  transition: background-color 0.3s ease-out;
-  > span {
-    transition: color 0.3s ease-out;
-    font-weight: 600;
-  }
-  &:hover {
-    background-color: #145cfe;
-    cursor: pointer;
-    > span {
-      color: #FFFFFF;
-    }
-  }
-` as typeof Center
-
-const GridChoice = ({
-  children,
-  onClick
-}: {
-  children: React.ReactNode
-  onClick?: () => void
-}) => {
-  return (
-    <GridChoicePane
-      padding={majorScale(2)}
-      backgroundColor={theme.colors.grey100}
-      onClick={onClick}
-      borderRadius={4}
-    >
-      {children}
-    </GridChoicePane>
   )
 }
 
@@ -200,37 +172,36 @@ const CloudProviderForm = ({
   onSelect: (type: t.CloudProvider) => void
   onBack: () => void
 }) => {
-  const select = (type: t.CloudProvider) => () => onSelect(type)
   return (
-    <>
-      <Pane
-        width='100%'
-        display='grid'
-        gridTemplateColumns={`repeat(3, 1fr)`}
-        columnGap={majorScale(4)}
-        rowGap={majorScale(4)}
-        paddingTop={majorScale(4)}
-        paddingBottom={majorScale(4)}
-      >
-        <GridChoice onClick={select('aws')}>
-          <Text>AWS</Text>
-        </GridChoice>
-        <GridChoice onClick={select('gcp')}>
-          <Text>GCP</Text>
-        </GridChoice>
-        <GridChoice onClick={select('vercel')}>
-          <Text>Vercel</Text>
-        </GridChoice>
-        <GridChoice onClick={select('azure')}>
-          <Text>Azure</Text>
-        </GridChoice>
-      </Pane>
-      <Split>
+    <Pane marginTop={majorScale(2)}>
+      <GridBoxSelect
+        choices={[{
+          label: 'AWS',
+          key: 'aws'
+        }, {
+          label: 'GCP',
+          key: 'gcp',
+          comingSoon: true
+        }, {
+          label: 'Vercel',
+          key: 'vercel',
+          comingSoon: true
+        }, {
+          label: 'Azure',
+          key: 'azure',
+          comingSoon: true
+        }, {
+          label: 'Heroku',
+          key: 'heroku',
+          comingSoon: true
+        }]}
+        onSelect={onSelect}
+      />
+      <Split marginTop={majorScale(2)}>
         <Button onClick={onBack}>
           Back
         </Button>
-        <Pane flex={1} />
       </Split>
-    </>
+    </Pane>
   )
 }

@@ -85,3 +85,45 @@ export const userState = selector<t.User | null>({
     })
   }
 })
+
+export const addDomainState = selector<t.Domain>({
+  key: 'exo.state.app.add-domain',
+  get: () => {
+    return {} as any as t.Domain
+  },
+  set: ({ get, set }, domain: t.Domain | any) => {
+    const platform = get(currentPlatformState)
+    if (!platform) return
+    set(appState, {
+      ...get(appState),
+      currentPlatform: {
+        ...platform,
+        domains: [
+          ...platform.domains,
+          domain
+        ]
+      }
+    })
+  }
+})
+
+export const updateServiceState = selector<t.Service>({
+  key: 'exo.state.app.update-service',
+  get: () => {
+    return {} as any as t.Service
+  },
+  set: ({ get, set }, service: t.Service | any) => {
+    const platform = get(currentPlatformState)
+    if (!platform) return
+    set(appState, {
+      ...get(appState),
+      currentPlatform: {
+        ...platform,
+        services: [
+          ...platform.services.filter(p => p.id !== service.id),
+          service
+        ]
+      }
+    })
+  }
+})

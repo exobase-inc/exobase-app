@@ -50,6 +50,7 @@ export default function SceneLayout({
           minHeight={'100vh'}
           paddingX={majorScale(4)}
           paddingTop={majorScale(4)}
+          background="tint1"
         >
           {children}
         </Pane>

@@ -8,6 +8,7 @@ import theme from '../../styles'
 import {
   majorScale,
   Pane,
+  Card,
   Text,
   Heading,
   Button,
@@ -103,13 +104,14 @@ const ServiceGridItem = ({
   const statusColor = deployStatusColor()
 
   const getVersion = (): string => {
-    const version = deployment?.attributes.version
+    const version = deployment?.attributes?.version
     return version ? `v${version}` : ''
   }
 
   return (
-    <Pane
-      backgroundColor={theme.colors.grey100}
+    <Card
+      backgroundColor={theme.colors.white}
+      elevation={1}
       borderRadius={4}
       padding={majorScale(2)}
     >
@@ -146,7 +148,7 @@ const ServiceGridItem = ({
         <>
           <Split marginBottom={majorScale(1)}>
             <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Link:</Heading>
-            <Text>{deployment?.attributes?.baseUrl ?? 'none'}</Text>
+            <Text>{deployment?.attributes?.url ?? 'none'}</Text>
           </Split>
           <Split marginBottom={majorScale(1)}>
             <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Deployed:</Heading>
@@ -162,7 +164,7 @@ const ServiceGridItem = ({
           <Text flex={1}>{getVersion()}</Text>
         </>
       )}
-    </Pane>
+    </Card>
   )
 }
 

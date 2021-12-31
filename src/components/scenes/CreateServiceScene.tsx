@@ -1,44 +1,49 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import _ from 'radash'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import * as t from '../../types'
 import { useNavigate } from 'react-router'
 import Recoil from 'recoil'
-import { Split, Center } from '../layout'
-import styled from 'styled-components'
-import GitUrlParse from 'git-url-parse'
+import { Split } from '../layout'
 import {
   Pane,
   Heading,
   Button,
-  IconButton,
   TextInputField,
-  Text,
   toaster,
   Strong,
+  Text,
+  Select,
   majorScale,
+  Badge,
   Link,
+  TagInput,
   Paragraph,
-  SearchInput
+  TextInput
 } from 'evergreen-ui'
-import { Octokit } from '@octokit/core'
 import { currentPlatformState, idTokenState } from '../../state/app'
-import { useFetch, useFormation, usePollingFetch } from '../../hooks'
-import { HiRefresh, HiOutlineCog } from 'react-icons/hi'
+import { useFetch, useFormation } from '../../hooks'
 import api from '../../api'
 import * as yup from 'yup'
-import { SceneLayout, SelectList } from '../ui'
-import theme from '../../styles'
-import { STACK_CONFIGS } from '../../stacks'
+import {
+  SceneLayout,
+  SelectList,
+  EnvironmentVariableForm,
+  GridBoxSelect,
+  GitHubSourceSearch,
+  StackConfigForm,
+  WizardProgress
+} from '../ui'
+import { STACK_CONFIGS, stackConfigDefaults } from '../../stacks'
+import { HiArrowLeft, HiArrowRight } from 'react-icons/hi'
 
 
-type Step = 'language'
-  | 'service-type'
-  | 'cloud-provider'
-  | 'provider-service'
-  | 'name'
-  | 'config'
+type Step = 'name-tags-language'
+  | 'type-provider-service'
+  | 'domain'
   | 'source'
+  | 'source-review'
+  | 'config'
+  | 'review'
 
 type State = {
   language: t.Language | null
@@ -46,8 +51,11 @@ type State = {
   provider: t.CloudProvider | null
   type: t.ExobaseService | null
   step: Step
-  config: any
+  config: t.ServiceConfig | null
+  name: string | null
   source: null | t.ServiceSource
+  domain: Omit<t.ServiceDomainConfig, 'fqd'> | null
+  tags: string[]
 }
 
 export default function CreateServiceScene() {
@@ -55,80 +63,66 @@ export default function CreateServiceScene() {
   const navigate = useNavigate()
   const idToken = Recoil.useRecoilValue(idTokenState)
   const currentPlatform = Recoil.useRecoilValue(currentPlatformState)
-  const createService = useFetch(api.services.create)
+  const createServiceRequest = useFetch(api.services.create)
   const [state, setState] = useState<State>({
-    step: 'language',
+    step: 'name-tags-language',
     language: null,
     service: null,
     provider: null,
     type: null,
     config: null,
-    source: null
+    source: null,
+    name: null,
+    domain: null,
+    tags: []
   })
 
   const serviceKey = `${state.type}:${state.provider}:${state.service}` as t.ExobaseServiceKey
   const stackConfig = STACK_CONFIGS[serviceKey]
 
-  const title = (() => {
-    if (state.step === 'language') return 'What language is your service written in?'
-    if (state.step === 'cloud-provider') return 'Where should we deploy it?'
-    if (state.step === 'config') return 'A Few Details'
-    if (state.step === 'name') return 'What do you call it?'
-    if (state.step === 'source') return 'Where is the source code?'
-    if (state.step === 'service-type') return 'What do you want to make?'
-    if (state.step === 'provider-service') return 'What service do you want to run on?'
-  })()
-
-  // const subtitle = (() => {
-  //   if (step === 'cloud-provider') return 'Where should we deploy it?'
-  //   if (step === 'config') return 'A Few Details'
-  //   if (step === 'service-type') return 'What do you want to make?'
-  // })()
-
-  const handleLanguage = (l: t.Language) => {
-    setState({ ...state, language: l, step: 'service-type' })
+  const handleNameTagsLanguage = (data: { name: string, tags: string[], language: t.Language }) => {
+    setState({
+      ...state,
+      ...data,
+      step: 'type-provider-service'
+    })
   }
 
-  const handleServiceType = (st: t.ExobaseService) => {
-    setState({ ...state, type: st, step: 'cloud-provider' })
-  }
-
-  const handleCloudProvider = (cp: t.CloudProvider) => {
-    setState({ ...state, provider: cp, step: 'provider-service' })
-  }
-
-  const handleCloudService = (cs: t.CloudService) => {
-    setState({ ...state, service: cs, step: 'source' })
+  const handleTypeProviderService = (data: { type: t.ExobaseService, provider: t.CloudProvider, service: t.CloudService }) => {
+    setState({
+      ...state,
+      ...data,
+      step: 'domain'
+    })
   }
 
   const handleSource = (source: t.ServiceSource) => {
-    const stackC = STACK_CONFIGS[serviceKey]
-    if (!stackC) {
-      setState({ ...state, source, step: 'name' })
-    } else {
-      setState({ ...state, source, step: 'config' })
-    }
+    setState({ ...state, source, step: 'config' })
   }
 
-  const handleConfig = (c: any) => {
-    setState({ ...state, config: c, step: 'name' })
+  const handleConfig = (config: t.ServiceConfig) => {
+    setState({ ...state, config, step: 'review' })
   }
 
-  const submit = async (name: string) => {
+  const handleDomain = (domain: Omit<t.ServiceDomainConfig, 'fqd'>) => {
+    const nextStep: Step = !!state.source ? 'source-review' : 'source'
+    setState({ ...state, domain, step: nextStep })
+  }
+
+  const submit = async () => {
 
     if (!currentPlatform) return
 
-    const { error } = await createService.fetch({
-      name,
+    const { error } = await createServiceRequest.fetch({
+      name: state.name!,
+      tags: state.tags,
       source: state.source!,
       service: state.service!,
       language: state.language!,
-      type: state.type!,
+      type: state.type as any,
       provider: state.provider!,
-      config: {
-        type: serviceKey,
-        ...state.config
-      }
+      config: state.config!,
+      domain: state.domain as t.ServiceDomainConfig
     }, { token: idToken! })
 
     if (error) {
@@ -148,48 +142,109 @@ export default function CreateServiceScene() {
     setState({ ...state, step })
   }
 
+  const title = (() => {
+    if (state.step === 'name-tags-language') return 'Create New Service'
+    return `Create ${state.name} Service`
+  })()
+
+  const subtitle = (() => {
+    if (state.step === 'name-tags-language') return (
+      `
+        Create a new service in the ${currentPlatform?.name} platform.
+        Add tags to help you organize services in the dashboard.
+      `
+    )
+    if (state.step === 'type-provider-service') {
+      return `
+        What are you building and how do you want to deploy it?
+      `
+    }
+    if (state.step === 'domain') {
+      return `
+        This step is optional. If you do not specify a domain 
+        the cloud provider/service will provide one after the
+        service is deployed.
+      `
+    }
+    if (state.step === 'source' || state.step === 'source-review') {
+      return `
+        Exobase needs a GitHub repository to use as the source. You 
+        can link us to a public repository or connect to GitHub to 
+        select a private repository.
+      `
+    }
+    if (state.step === 'config') {
+      return `
+        We've set default values for your cloud provider/service. You can
+        expand the advanced section and customize if needed.
+      `
+    }
+    if (state.step === 'review') {
+      return `
+        Double check that all is ok. Confirming will not deploy your service.
+        You can deploy with one click after it is created.
+      `
+    }
+    return ''
+  })()
+
   return (
-    <SceneLayout>
+    <SceneLayout subtitle='Create Service'>
       <Pane
         display='flex'
         flexDirection='row'
         alignItems='center'
         justifyContent='center'
+        paddingBottom={majorScale(4)}
       >
         <Pane
           maxWidth='500px'
           flex={1}
         >
-          <Pane width='100%'>
-            <Heading flex={1} size={800}>{title}</Heading>
+          <Pane>
+            <Heading size={800}>
+              {title}
+            </Heading>
             <Paragraph>
-              Create a new service in the <Strong>{currentPlatform?.name}</Strong> platform.
+              {subtitle}
             </Paragraph>
           </Pane>
-          {state.step === 'language' && (
-            <LanguageForm
-              onSelect={handleLanguage}
+          <WizardProgress
+            marginY={majorScale(2)}
+            steps={[
+              'init', 'type', 'domain', 'source', 'config', 'confirm'
+            ]}
+            current={(() => {
+              if (state.step === 'name-tags-language') return 'init'
+              if (state.step === 'type-provider-service') return 'type'
+              if (state.step === 'domain') return 'domain'
+              if (state.step === 'source') return 'source'
+              if (state.step === 'source-review') return 'source'
+              if (state.step === 'config') return 'config'
+              if (state.step === 'review') return 'confirm'
+              return 'confirm'
+            })()}
+          />
+          {state.step === 'name-tags-language' && (
+            <ServiceNameTagsLanguageForm
               onBack={cancel}
+              onSubmit={handleNameTagsLanguage}
             />
           )}
-          {state.step === 'service-type' && (
-            <ServiceTypeForm
-              onSelect={handleServiceType}
-              onBack={setStep('language')}
+          {state.step === 'type-provider-service' && (
+            <TypeProviderServiceForm
+              onSubmit={handleTypeProviderService}
+              onBack={setStep('name-tags-language')}
             />
           )}
-          {state.step === 'cloud-provider' && (
-            <CloudProviderForm
-              onSelect={handleCloudProvider}
-              onBack={setStep('service-type')}
-            />
-          )}
-          {state.step === 'provider-service' && (
-            <CloudServiceForm
-              serviceType={state.type!}
+          {state.step === 'domain' && (
+            <ServiceDomainForm
+              initDomain={state.domain}
+              platform={currentPlatform!}
               provider={state.provider!}
-              onSelect={handleCloudService}
-              onBack={setStep('cloud-provider')}
+              onSubmit={handleDomain}
+              onSkip={setStep('source')}
+              onBack={setStep('type-provider-service')}
             />
           )}
           {state.step === 'source' && (
@@ -197,20 +252,33 @@ export default function CreateServiceScene() {
               idToken={idToken ?? ''}
               platform={currentPlatform!}
               onSubmit={handleSource}
-              onBack={setStep('provider-service')}
+              onBack={setStep('domain')}
+            />
+          )}
+          {state.step === 'source-review' && (
+            <RepositoryReview
+              source={state.source!}
+              onChange={setStep('source')}
+              onNext={setStep('config')}
+              onBack={setStep('domain')}
             />
           )}
           {state.step === 'config' && (
-            <StackConfigForm
+            <ServiceConfigForm
+              initConfig={state.config}
+              platform={currentPlatform!}
+              serviceName={state.name!}
               stackConfig={stackConfig}
-              onBack={setStep('cloud-provider')}
+              onBack={setStep('source-review')}
               onSubmit={handleConfig}
             />
           )}
-          {state.step === 'name' && (
-            <ServiceNameForm
-              onBack={setStep('cloud-provider')}
+          {state.step === 'review' && (
+            <ServiceReviewForm
+              loading={createServiceRequest.loading}
+              state={state}
               onSubmit={submit}
+              onBack={setStep('config')}
             />
           )}
         </Pane>
@@ -219,15 +287,88 @@ export default function CreateServiceScene() {
   )
 }
 
-
-function ServiceNameForm({
+function ServiceReviewForm({
+  state,
+  loading = false,
   onSubmit,
   onBack
 }: {
-  onSubmit: (name: string) => void
+  state: State
+  loading?: boolean
+  onSubmit: () => void
+  onBack: () => void
+}) {
+  const url = state.domain && (state.domain.subdomain === ''
+    ? `https://${state.domain.domain}`
+    : `https://${state.domain?.subdomain}.${state.domain?.domain}`
+  )
+  return (
+    <>
+      <Pane
+        marginTop={majorScale(2)}
+      >
+        <Heading size={700}>{state.name}</Heading>
+        <Paragraph>
+          A {state.language} {state.type} running on {state.provider} {state.service}.
+        </Paragraph>
+        <Pane>
+          {state.tags.map(tag => (
+            <Badge key={tag} marginRight={majorScale(1)}>{tag}</Badge>
+          ))}
+        </Pane>
+        {url && (
+          <Pane marginTop={majorScale(4)}>
+            <Heading marginBottom={majorScale(1)}>Domain</Heading>
+            <Link href={url}>{url}</Link>
+          </Pane>
+        )}
+        <Pane marginTop={majorScale(4)}>
+          <Heading marginBottom={majorScale(1)}>Source</Heading>
+          <SelectList
+            items={[{
+              id: 'selected',
+              label: `${state.source?.owner}/${state.source?.repo}`,
+              subtitle: state.source?.branch,
+              link: `https://github.com/${state.source?.owner}/${state.source?.repo}`,
+              selectable: false
+            }]}
+          />
+        </Pane>
+        {state.config?.environmentVariables && state.config.environmentVariables.length > 0 && (
+          <Pane marginTop={majorScale(4)}>
+            <Heading marginBottom={majorScale(1)}>Environment Variables</Heading>
+            <EnvironmentVariableForm
+              disabled
+              hideSecrets
+              hideHeader
+              values={state.config.environmentVariables}
+            />
+          </Pane>
+        )}
+      </Pane>
+      <Split marginTop={majorScale(4)}>
+        <Pane flex={1}>
+          <BackButton onClick={onBack} />
+        </Pane>
+        <NextButton onClick={onSubmit} isLoading={loading}>
+          create
+        </NextButton>
+      </Split>
+    </>
+  )
+}
+
+
+function ServiceNameTagsLanguageForm({
+  onSubmit,
+  onBack
+}: {
+  onSubmit: (data: { name: string, tags: string[], language: t.Language }) => void
   onBack: () => void
 }) {
 
+  const [language, setLanguage] = useState<t.Language>('typescript')
+  const [tags, setTags] = useState<string[]>([])
   const form = useFormation({
     name: yup.string().required()
   }, {
@@ -235,7 +376,7 @@ function ServiceNameForm({
   })
 
   const handleSubmit = (formData: { name: string }) => {
-    onSubmit(formData.name)
+    onSubmit({ name: formData.name, tags, language })
   }
 
   return (
@@ -247,22 +388,94 @@ function ServiceNameForm({
           validationMessage={form.errors.name?.message}
           {...form.register('name')}
         />
+        <Pane marginTop={majorScale(4)}>
+          <Pane>
+            <Text>Tags</Text>
+          </Pane>
+          <TagInput
+            width='100%'
+            marginTop={majorScale(1)}
+            inputProps={{
+              placeholder: 'Add tags...'
+            }}
+            values={tags}
+            onChange={setTags}
+          />
+        </Pane>
+        <Pane marginTop={majorScale(4)}>
+          <Pane>
+            <Text>Language</Text>
+          </Pane>
+          <GridBoxSelect<t.Language>
+            marginTop={majorScale(2)}
+            selected={language}
+            onSelect={setLanguage}
+            choices={[{
+              label: 'Javascript',
+              key: 'javascript',
+              comingSoon: true
+            }, {
+              label: 'Typescript',
+              key: 'typescript'
+            }, {
+              label: 'Python',
+              key: 'python',
+              comingSoon: true
+            }, {
+              label: 'Swift',
+              key: 'swift',
+              comingSoon: true
+            }]}
+          />
+        </Pane>
       </Pane>
-      <Split>
-        <Button onClick={onBack}>
-          Back
-        </Button>
-        <Pane flex={1} />
-        <Button
-          onClick={form.createHandler(handleSubmit)}
-          appearance='primary'
-        >
-          Create
-        </Button>
+      <Split marginTop={majorScale(4)}>
+        <Pane flex={1}>
+          <BackButton onClick={onBack}>
+            cancel
+          </BackButton>
+        </Pane>
+        <NextButton onClick={form.createHandler(handleSubmit)} />
       </Split>
     </>
   )
 }
+
+
+const RepositoryReview = ({
+  source,
+  onChange,
+  onNext,
+  onBack
+}: {
+  source: t.ServiceSource
+  onChange?: () => void
+  onNext?: () => void
+  onBack?: () => void
+}) => {
+  return (
+    <>
+      <SelectList
+        items={[{
+          id: 'selected',
+          label: `${source.owner}/${source.repo}`,
+          subtitle: source.branch,
+          link: `https://github.com/${source.owner}/${source.repo}`,
+          selectLabel: 'change',
+          selectAppearance: 'minimal'
+        }]}
+        onSelect={onChange}
+      />
+      <Split marginTop={majorScale(4)}>
+        <Pane flex={1}>
+          <BackButton onClick={onBack} />
+        </Pane>
+        <NextButton onClick={onNext} />
+      </Split>
+    </>
+  )
+}
+
 
 function RepositorySourceForm({
   platform,
@@ -275,500 +488,44 @@ function RepositorySourceForm({
   onSubmit: (source: t.ServiceSource) => void
   onBack: () => void
 }) {
-
-  const [isGithubConnected, setIsGithubConnected] = useState(platform.hasConnectedGithubApp)
-  const listConnectedRepositoriesRequest = useFetch(api.platforms.listAvailableRepositories)
-  const listConnectedBranchesRequest = useFetch(api.platforms.listAvailableBranches)
-  const [state, setState] = useState<Partial<t.ServiceSource>>({})
-  const [loadingLink, setLoadingLink] = useState(false)
-  const [step, setStep] = useState<'repo' | 'public-branch' | 'connected-branch'>('repo')
-  const [repoMatch, setRepoMatch] = useState<null | {
-    repoId: string
-    owner: string
-    repo: string
-  }>(null)
-  const [branches, setBranches] = useState<{ name: string }[]>([])
-  const [repoFilter, setRepoFilter] = useState('')
-  const [branchFilter, setBranchFilter] = useState('')
-  const [branchesLoading, setBranchesLoading] = useState(false)
-  const platformPolling = usePollingFetch(api.platforms.getById, {
-    waitMs: 800,
-    active: false,
-    args: { id: platform.id },
-    auth: { token: idToken }
-  })
-
-  const connectedRepositories = listConnectedRepositoriesRequest.data?.repositories.filter(r => {
-    return repoFilter.length > 0
-      ? `${r.owner}/${r.repo}`.toLowerCase().includes(repoFilter)
-      : true
-  }) ?? []
-
-  const branchFilterFunc = (b: { name: string }) => {
-    return branchFilter.length > 0
-      ? b.name.toLowerCase().includes(branchFilter)
-      : true
-  }
-
-  const connectedBranches = listConnectedBranchesRequest.data?.branches.filter(branchFilterFunc) ?? []
-  const linkedBranches = branches.filter(branchFilterFunc)
-
-  useEffect(() => {
-    if (platform.hasConnectedGithubApp) {
-      listConnectedRepositoriesRequest.fetch({}, { token: idToken })
-    }
-  }, [])
-
-  useEffect(() => {
-    if (platform.hasConnectedGithubApp) return
-    const hasConnectedGithubApp = platformPolling.data?.platform?.hasConnectedGithubApp
-    if (hasConnectedGithubApp) {
-      platformPolling.pause()
-      listConnectedRepositoriesRequest.fetch({}, { token: idToken })
-      setIsGithubConnected(true)
-    }
-  }, [platformPolling.data])
-
-  const searchForRepository = async (owner: string, repo: string) => {
-    setLoadingLink(true)
-    const octokit = new Octokit()
-    const [err, result] = await _.try(() => {
-      return octokit.request('GET /repos/{owner}/{repo}', {
-        owner, repo
-      })
-    })()
-    setLoadingLink(false)
-    if (err) {
-      console.error(err)
-      return null
-    }
-    return {
-      repoId: `${result.data.id}`,
-      owner,
-      repo
-    }
-  }
-
-  const listBranchesInPublicRepository = async (owner: string, repo: string) => {
-    setBranchesLoading(true)
-    const octokit = new Octokit()
-    const [err, result] = await _.try(() => {
-      return octokit.request('GET /repos/{owner}/{repo}/branches', {
-        owner, repo
-      })
-    })()
-    setBranchesLoading(false)
-    if (err) {
-      console.error(err)
-      return null
-    }
-    return result.data.map(b => ({
-      name: b.name
-    }))
-  }
-
-  const handleLink = async (link: string) => {
-    const { name: repo, owner } = GitUrlParse(link)
-    const match = await searchForRepository(owner, repo)
-    if (!match) {
-      toaster.danger('Could not find a matching repository in GitHub')
-    } else {
-      setRepoMatch(match)
-    }
-  }
-
-  const connectGithub = () => {
-    platformPolling.poll()
-    window.open('https://github.com/apps/exobase-bot/installations/new', '')?.focus()
-  }
-
-  const selectLinkedRepo = async () => {
-    if (!repoMatch) return
-    const { repoId, owner, repo } = repoMatch
-    setStep('public-branch')
-    setState({
-      repoId, owner, repo, private: false, installationId: null
-    })
-    const foundBranches = await listBranchesInPublicRepository(owner, repo)
-    if (foundBranches === null) {
-      toaster.danger('Failed to get the branches for this repository. It may have none.')
-      return
-    }
-    setBranches(foundBranches)
-  }
-
-  const handleBranchSelect = (branch: string) => {
-    onSubmit({ ...state, branch, provider: 'github' } as t.ServiceSource)
-  }
-
-  const handleRepoSelect = (repo: {
-    id: string
-    repo: string
-    owner: string
-    installationId: string
-  }) => {
-    setState({
-      repoId: repo.id,
-      owner: repo.owner,
-      repo: repo.repo,
-      installationId: repo.installationId,
-      private: true
-    })
-    listConnectedBranchesRequest.fetch({
-      installationId: repo.installationId,
-      owner: repo.owner,
-      repo: repo.repo
-    }, { token: idToken })
-    setStep('connected-branch')
-  }
-
   return (
-    <Pane width='100%' marginTop={majorScale(2)}>
-      {step === 'repo' && (
-        <Pane>
-          <TextInputField
-            label="Open Source Link"
-            placeholder="https://github.com/exobase-inc/exobase-api"
-            onChange={(e: any) => handleLink(e.target.value)}
-          />
-          {(loadingLink || repoMatch) && (
-            <SelectList
-              loading={loadingLink}
-              items={[{
-                id: 'linked',
-                label: repoMatch?.repo ?? '',
-                subtitle: repoMatch?.owner ?? '',
-                link: `https://github.com/${repoMatch?.owner}/${repoMatch?.repo}`
-              }]}
-              onSelect={() => selectLinkedRepo()}
-            />
-          )}
-          <Center>
-            <Text size={600} fontWeight='bold' marginBottom={majorScale(4)}>or</Text>
-          </Center>
-          {isGithubConnected && (
-            <>
-              {!listConnectedRepositoriesRequest.loading && (
-                <Split
-                  marginBottom={majorScale(2)}
-                >
-                  <SearchInput
-                    placeholder="Filter repositories"
-                    value={repoFilter}
-                    width='100%'
-                    onChange={(e: any) => setRepoFilter(e.target.value)}
-                    marginRight={majorScale(2)}
-                  />
-                  <IconButton
-                    icon={<HiRefresh />}
-                    appearance='primary'
-                    onClick={() => listConnectedRepositoriesRequest.fetch({}, { token: idToken })}
-                    marginRight={majorScale(2)}
-                  />
-                  <IconButton
-                    icon={<HiOutlineCog />}
-                    appearance='default'
-                    onClick={connectGithub}
-                  />
-                </Split>
-              )}
-              <SelectList
-                maxHeight='50vh'
-                loading={listConnectedRepositoriesRequest.loading}
-                items={connectedRepositories.map((repo) => ({
-                  id: repo.id,
-                  label: repo.repo,
-                  subtitle: repo.owner,
-                  link: `https://github.com/${repo.owner}/${repo.repo}`
-                })) ?? []}
-                onSelect={(item) => handleRepoSelect(connectedRepositories.find(r => r.id === item.id)!)}
-              />
-            </>
-          )}
-          {!isGithubConnected && (
-            <Pane>
-              <Button onClick={connectGithub}>Connect GitHub</Button>
-            </Pane>
-          )}
-        </Pane>
-      )}
-      {step.includes('-branch') && (
-        <>
-          <SelectList
-            items={[{
-              id: 'any',
-              label: state.repo!,
-              subtitle: state.owner!,
-              link: `https://github.com/${state.owner}/${state.repo}`,
-              selectLabel: 'change',
-              selectAppearance: 'minimal'
-            }]}
-            onSelect={() => setStep('repo')}
-          />
-          <Center>
-            <Text size={600} fontWeight='bold' marginBottom={majorScale(3)}>select branch</Text>
-          </Center>
-        </>
-      )}
-
-      {step === 'public-branch' && (
-        <>
-          <SearchInput
-            placeholder="Filter branches"
-            value={branchFilter}
-            width='100%'
-            onChange={(e: any) => setBranchFilter(e.target.value)}
-            marginBottom={majorScale(2)}
-          />
-          <SelectList
-            maxHeight='50vh'
-            loading={branchesLoading}
-            items={linkedBranches.map((branch) => ({
-              id: branch.name,
-              label: branch.name,
-              link: `https://github.com/${state.owner}/${state.repo}/tree/${branch.name}`
-            })) ?? []}
-            onSelect={({ id }) => handleBranchSelect(id as string)}
-          />
-        </>
-      )}
-      {step === 'connected-branch' && (
-        <>
-          <SearchInput
-            placeholder="Filter branches"
-            value={branchFilter}
-            width='100%'
-            onChange={(e: any) => setBranchFilter(e.target.value)}
-            marginBottom={majorScale(2)}
-          />
-          <SelectList
-            maxHeight='50vh'
-            loading={listConnectedBranchesRequest.loading}
-            items={connectedBranches.map((branch) => ({
-              id: branch.name,
-              label: branch.name,
-              link: `https://github.com/${state.owner}/${state.repo}/tree/${branch.name}`
-            })) ?? []}
-            onSelect={({ id }) => handleBranchSelect(id as string)}
-          />
-        </>
-      )}
+    <Pane marginTop={majorScale(2)}>
+      <GitHubSourceSearch
+        platform={platform}
+        idToken={idToken}
+        onSubmit={onSubmit}
+      />
+      <Split marginTop={majorScale(4)}>
+        <BackButton onClick={onBack} />
+      </Split>
     </Pane>
   )
 }
 
 
-const GridChoicePane = styled(Center) <{ $comingSoon: boolean }>`
-  transition: background-color 0.3s ease-out;
-  > span {
-    transition: color 0.3s ease-out;
-    color: ${({ $comingSoon }) => $comingSoon ? theme.colors.grey300 : theme.colors.grey999};
-    font-weight: 600;
+const TypeProviderServiceForm = ({
+  onSubmit,
+  onBack
+}: {
+  onSubmit: (data: {
+    type: t.ExobaseService
+    provider: t.CloudProvider
+    service: t.CloudService
+  }) => void
+  onBack: () => void
+}) => {
+  const [state, setState] = useState<{
+    type: t.ExobaseService
+    provider: t.CloudProvider
+    service: t.CloudService
+  }>({
+    type: 'api',
+    provider: 'aws',
+    service: 'lambda'
+  })
+  const update = (key: 'type' | 'provider' | 'service') => (value: any) => {
+    setState({ ...state, [key]: value })
   }
-  ${({ $comingSoon }) => !$comingSoon && `
-    &:hover {
-      background-color: ${theme.colors.accent};
-      cursor: pointer;
-      > span {
-        color: ${theme.colors.white};
-      }
-    }
-  `}
-`
-
-const GridChoice = ({
-  label,
-  comingSoon = false,
-  onClick
-}: {
-  label: string
-  comingSoon?: boolean
-  onClick?: () => void
-}) => {
-  return (
-    <GridChoicePane
-      padding={majorScale(2)}
-      backgroundColor={theme.colors.grey100}
-      onClick={onClick}
-      borderRadius={4}
-      position='relative'
-      $comingSoon={comingSoon}
-    >
-      <Text
-        textAlign='center'
-      >
-        {label}
-      </Text>
-      {comingSoon && (
-        <Text
-          position='absolute'
-          bottom='4px'
-          size={300}
-        >
-          coming soon
-        </Text>
-      )}
-    </GridChoicePane>
-  )
-}
-
-
-const CloudProviderForm = ({
-  onSelect,
-  onBack
-}: {
-  onSelect: (type: t.CloudProvider) => void
-  onBack: () => void
-}) => {
-  const select = (type: t.CloudProvider) => () => onSelect(type)
-  return (
-    <>
-      <Pane
-        width='100%'
-        display='grid'
-        gridTemplateColumns={`repeat(3, 1fr)`}
-        columnGap={majorScale(4)}
-        rowGap={majorScale(4)}
-        paddingTop={majorScale(4)}
-        paddingBottom={majorScale(4)}
-      >
-        <GridChoice
-          onClick={select('aws')}
-          label='AWS'
-        />
-        <GridChoice
-          onClick={select('gcp')}
-          label='GCP'
-          comingSoon
-        />
-        <GridChoice
-          onClick={select('azure')}
-          label='Azure'
-          comingSoon
-        />
-        <GridChoice
-          onClick={select('vercel')}
-          label='Vercel'
-          comingSoon
-        />
-      </Pane>
-      <Split>
-        <Button onClick={onBack}>
-          Back
-        </Button>
-        <Pane flex={1} />
-      </Split>
-    </>
-  )
-}
-
-
-const ServiceTypeForm = ({
-  onSelect,
-  onBack
-}: {
-  onSelect: (type: t.ExobaseService) => void
-  onBack: () => void
-}) => {
-  const select = (type: t.ExobaseService) => () => onSelect(type)
-  return (
-    <>
-      <Pane
-        width='100%'
-        display='grid'
-        gridTemplateColumns={`repeat(3, 1fr)`}
-        columnGap={majorScale(4)}
-        rowGap={majorScale(4)}
-        paddingTop={majorScale(4)}
-        paddingBottom={majorScale(4)}
-      >
-        <GridChoice
-          label='Static Website'
-          comingSoon
-        />
-        <GridChoice
-          onClick={select('api')}
-          label='API'
-        />
-        <GridChoice
-          label='Websocket Server'
-          comingSoon
-        />
-        <GridChoice
-          label='App'
-          comingSoon
-        />
-      </Pane>
-      <Split>
-        <Button onClick={onBack}>
-          Back
-        </Button>
-        <Pane flex={1} />
-      </Split>
-    </>
-  )
-}
-
-
-const LanguageForm = ({
-  onSelect,
-  onBack
-}: {
-  onSelect: (language: t.Language) => void
-  onBack: () => void
-}) => {
-  const select = (lang: t.Language) => () => onSelect(lang)
-  return (
-    <>
-      <Pane
-        width='100%'
-        display='grid'
-        gridTemplateColumns={`repeat(3, 1fr)`}
-        columnGap={majorScale(4)}
-        rowGap={majorScale(4)}
-        paddingTop={majorScale(4)}
-        paddingBottom={majorScale(4)}
-      >
-        <GridChoice
-          label='Javascript'
-          comingSoon
-        />
-        <GridChoice
-          label='Typescript'
-          onClick={select('typescript')}
-        />
-        <GridChoice
-          label='Python'
-          comingSoon
-        />
-        <GridChoice
-          label='Swift'
-          comingSoon
-        />
-      </Pane>
-      <Split>
-        <Button onClick={onBack}>
-          Back
-        </Button>
-        <Pane flex={1} />
-      </Split>
-    </>
-  )
-}
-
-
-const CloudServiceForm = ({
-  serviceType,
-  provider,
-  onSelect,
-  onBack
-}: {
-  serviceType: t.ExobaseService
-  provider: t.CloudProvider
-  onSelect: (service: t.CloudService) => void
-  onBack: () => void
-}) => {
-  const select = (service: t.CloudService) => () => onSelect(service)
   const PROVIDER_SERVICE_TYPE = {
     aws: {
       api: [{
@@ -795,108 +552,223 @@ const CloudServiceForm = ({
       }]
     }
   } as any as Record<t.CloudProvider, Record<t.ExobaseService, { key: t.CloudService, label: string, comingSoon?: boolean }[]>>
-  const options = PROVIDER_SERVICE_TYPE[provider][serviceType]
+  const serviceChoices = PROVIDER_SERVICE_TYPE[state.provider][state.type]
   return (
-    <>
-      <Pane
-        width='100%'
-        display='grid'
-        gridTemplateColumns={`repeat(3, 1fr)`}
-        columnGap={majorScale(4)}
-        rowGap={majorScale(4)}
-        paddingTop={majorScale(4)}
-        paddingBottom={majorScale(4)}
-      >
-        {options.map(({ key, label, comingSoon = false }) => (
-          <GridChoice
-            key={key}
-            label={label}
-            comingSoon={comingSoon}
-            onClick={select(key)}
-          />
-        ))}
+    <Pane>
+      <Pane marginTop={majorScale(4)}>
+        <Heading>What type of web service are you building?</Heading>
+        <GridBoxSelect<t.ExobaseService>
+          marginTop={majorScale(2)}
+          onSelect={update('type')}
+          selected={state.type}
+          choices={[{
+            label: 'Static Website',
+            key: 'static-website',
+            comingSoon: true
+          }, {
+            label: 'API',
+            key: 'api'
+          }, {
+            label: 'Websocket Server',
+            key: 'websocket-server',
+            comingSoon: true
+          }, {
+            label: 'App',
+            key: 'app',
+            comingSoon: true
+          }]}
+        />
       </Pane>
-      <Split>
-        <Button onClick={onBack}>
-          Back
-        </Button>
-        <Pane flex={1} />
+      <Pane marginTop={majorScale(4)}>
+        <Heading>Where do you want to host it?</Heading>
+        <GridBoxSelect<t.CloudProvider>
+          marginTop={majorScale(2)}
+          onSelect={update('provider')}
+          selected={state.provider}
+          choices={[{
+            label: 'AWS',
+            key: 'aws'
+          }, {
+            label: 'GCP',
+            key: 'gcp',
+            comingSoon: true
+          }, {
+            label: 'Azure',
+            key: 'azure',
+            comingSoon: true
+          }, {
+            label: 'Vercel',
+            key: 'vercel',
+            comingSoon: true
+          }]}
+        />
+      </Pane>
+      <Pane marginTop={majorScale(4)}>
+        <Heading>What service do you want to run it on?</Heading>
+        <GridBoxSelect<t.CloudService>
+          marginTop={majorScale(2)}
+          selected={state.service}
+          onSelect={update('service')}
+          choices={serviceChoices}
+        />
+      </Pane>
+      <Split marginTop={majorScale(4)}>
+        <Pane flex={1}>
+          <BackButton onClick={onBack} />
+        </Pane>
+        <NextButton onClick={() => onSubmit(state)} />
       </Split>
-    </>
+    </Pane >
   )
 }
 
-
-const StackConfigForm = ({
+const ServiceConfigForm = ({
+  initConfig,
+  platform,
+  serviceName,
   stackConfig,
   onSubmit,
   onBack
 }: {
+  initConfig: t.ServiceConfig | null
+  platform: t.Platform
+  serviceName: string
   stackConfig: t.StackConfig
-  onSubmit: (config: any) => void
+  onSubmit: (config: t.ServiceConfig) => void
   onBack: () => void
 }) => {
 
-  const yupSchemaForInputType = (type: t.StackConfigInputType) => {
-    if (type === 'function-route') {
-      return yup.string().matches(/^\w+?\.\w+?$/, {
-        excludeEmptyString: true,
-        message: 'Requires {module}.{function} format'
-      }).required('Field is required')
-    }
-    return yup.mixed()
-  }
-
-  const schema = stackConfig.inputs.reduce((acc, input) => ({
-    ...acc, [input.key]: yupSchemaForInputType(input.type)
-  }), {})
-
-  const defaults = stackConfig.inputs.reduce((acc, input) => ({
-    ...acc, [input.key]: input.init
-  }), {})
-
-  const form = useFormation(schema, defaults)
-
-  const getConfigInputComponent = (type: t.StackConfigInputType) => {
-    if (type === 'function-route') return TextInputField
-    return TextInputField
-  }
-
-  const inputs = stackConfig.inputs.map(input => ({
-    ...input,
-    Component: getConfigInputComponent(input.type)
-  }))
+  const [config, setConfig] = useState<t.ServiceConfig>(initConfig ?? {
+    type: stackConfig.stack,
+    environmentVariables: [],
+    stack: stackConfigDefaults(stackConfig)
+  })
 
   return (
-    <>
-      <Pane width='100%' marginTop={majorScale(2)}>
-        {inputs.map((input) => (
-          <input.Component
-            key={input.key}
-            marginTop={majorScale(3)}
-            label={input.label}
-            hint={(
-              <Link href={input.infoLink ?? '#'}>learn more</Link>
-            )}
-            description={input.description}
-            placeholder={input.placeholder}
-            validationMessage={(form.errors as any)[input.key]?.message}
-            {...form.register(input.key as any as never)}
-          />
-        ))}
-      </Pane>
-      <Split>
-        <Button onClick={onBack}>
-          Back
-        </Button>
-        <Pane flex={1} />
-        <Button
-          onClick={form.createHandler(onSubmit)}
-          appearance='primary'
-        >
-          Next
-        </Button>
+    <Pane>
+      <StackConfigForm
+        value={config}
+        platform={platform}
+        serviceName={serviceName}
+        stackConfig={stackConfig}
+        onChange={setConfig}
+      />
+      <Split marginTop={majorScale(4)}>
+        <Pane flex={1}>
+          <BackButton onClick={onBack} />
+        </Pane>
+        <NextButton onClick={() => onSubmit(config)} />
       </Split>
-    </>
+    </Pane>
   )
 }
+
+
+const ServiceDomainForm = ({
+  initDomain,
+  platform,
+  provider,
+  onSubmit,
+  onSkip,
+  onBack
+}: {
+  initDomain: Omit<t.ServiceDomainConfig, 'fqd'> | null
+  platform: t.Platform
+  provider: t.CloudProvider
+  onSubmit: (domain: Omit<t.ServiceDomainConfig, 'fqd'>) => void
+  onSkip?: () => void
+  onBack?: () => void
+}) => {
+
+  const [domain, setDomain] = useState(initDomain ? initDomain.domain : '')
+  const subdomainForm = useFormation<{ subdomain: string }>(initDomain ? {
+    subdomain: initDomain.subdomain
+  } : {
+    subdomain: ''
+  })
+
+  const handleSubmit = () => {
+    onSubmit({
+      domain,
+      subdomain: subdomainForm.watch().subdomain
+    })
+  }
+
+  const domains = platform.domains.filter(d => d.provider === provider)
+
+  const canSubmit = (() => {
+    if (!domain) return false
+    if (domain === '') return false
+    if (domain === '_none_selected') return false
+    return true
+  })()
+
+  return (
+    <Pane marginTop={majorScale(4)}>
+      {domains.length > 0 && (
+        <Pane>
+          <Heading marginBottom={majorScale(1)}>Domain</Heading>
+          <Split alignItems='flex-end'>
+            <TextInput
+              placeholder='dev'
+              {...subdomainForm.register('subdomain')}
+            />
+            <Pane marginX={majorScale(1)}>
+              <Strong>.</Strong>
+            </Pane>
+            <Select onChange={(e: any) => setDomain(e.target.value)}>
+              <option value='_none_selected'>Select Domain</option>
+              {domains.map(d => (
+                <option selected={domain === d.domain} value={d.domain}>{d.domain}</option>
+              ))}
+            </Select>
+          </Split>
+        </Pane>
+      )}
+      {domains.length === 0 && (
+        <Paragraph>
+          There are no domains configured for the {provider} cloud provider.
+          You can configure one and return or continue without a custom domain.
+          A custom domain can always be added or changed to a running service.
+        </Paragraph>
+      )}
+      <Split marginTop={majorScale(4)}>
+        <Pane flex={1}>
+          <BackButton onClick={onBack} />
+        </Pane>
+        <Button
+          appearance='minimal'
+          onClick={onSkip}
+          marginRight={majorScale(1)}
+        >
+          skip
+        </Button>
+        <NextButton onClick={handleSubmit} disabled={!canSubmit} />
+      </Split>
+    </Pane>
+  )
+}
+
+const BackButton = ((props: any) => {
+  return (
+    <Button
+      appearance='minimal'
+      iconBefore={<HiArrowLeft size={12} />}
+      {...props}
+    >
+      {props.children ? props.children : 'back'}
+    </Button>
+  )
+}) as typeof Button
+
+const NextButton = ((props: any) => {
+  return (
+    <Button
+      appearance='primary'
+      iconAfter={<HiArrowRight size={12} />}
+      {...props}
+    >
+      {props.children ? props.children : 'next'}
+    </Button>
+  )
+}) as typeof Button

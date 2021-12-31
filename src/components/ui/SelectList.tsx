@@ -2,6 +2,7 @@ import {
   Pane,
   Text,
   Button,
+  Card,
   majorScale
 } from 'evergreen-ui'
 import { Split, Stack } from '../layout'
@@ -52,13 +53,17 @@ export default function SelectList({
         </>
       )}
       {!loading && items && items.map(item => (
-        <Split
+        <Card
+          key={item.id}
           onClick={() => onSelect?.(item)}
           marginBottom={majorScale(2)}
-          backgroundColor={theme.colors.grey100}
           borderRadius={4}
           padding={majorScale(2)}
           alignItems='center'
+          backgroundColor='white'
+          elevation={0}
+          display='flex'
+          flexDirection='row'
         >
           <Stack flex={1}>
             <Text size={600}>{item.label}</Text>
@@ -73,7 +78,7 @@ export default function SelectList({
               {item.selectLabel ?? 'select'}
             </Button>
           )}
-        </Split>
+        </Card>
       ))}
     </Pane>
   )

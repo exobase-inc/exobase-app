@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
-    "@exobase/client-js": "^0.0.16",
+    "@exobase/client-js": "^0.0.28",
     "@hookform/resolvers": "^2.8.4",
     "@octokit/core": "^3.5.1",
     "add": "^2.0.6",

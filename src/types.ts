@@ -1,5 +1,7 @@
 import * as t from '@exobase/client-js'
 
+export type ArgumentTypes<F extends Function> = F extends (...args: infer A) => any ? A : never
+
 export interface EntityIdentifier {
   id: string
   label: string
@@ -8,10 +10,12 @@ export interface EntityIdentifier {
 export type Language = t.Language
 export type CloudProvider = t.CloudProvider
 export type CloudService = t.CloudService
-export type ExobaseService = t.ExobaseService
+export type ExobaseService = t.ExobaseService | 'static-website'
 export type StackKey = t.StackKey
 export type ExobaseServiceKey = t.ExobaseServiceKey
 export type DeploymentStatus = t.DeploymentStatus
+export type ServiceConfig = t.ServiceConfig
+export type ServiceDomainConfig = t.ServiceDomainConfig
 
 export type Domain = {
   id: string
@@ -78,7 +82,7 @@ export type HerokuProviderConfig = {
 //  STACK CONFIGS
 //
 
-export type StackConfigInputType = 'function-route'
+export type StackConfigInputType =  'number' | 'string' | 'boolean' | 'handler'
 
 export interface StackConfig {
   stack: ExobaseServiceKey
@@ -91,4 +95,10 @@ export interface StackConfig {
     init: string | number | boolean
     placeholder?: string
   }[]
+}
+
+export interface EnvironmentVariable {
+  name: string
+  value: string
+  isSecret: boolean
 }

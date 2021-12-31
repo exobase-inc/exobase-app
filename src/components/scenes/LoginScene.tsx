@@ -110,6 +110,7 @@ export default function LoginScene() {
           width="100%"
           onClick={login}
           disabled={loading}
+          isLoading={loading}
           appearance='primary'
         >
           Next

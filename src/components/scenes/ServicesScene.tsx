@@ -5,18 +5,13 @@ import { useNavigate } from 'react-router'
 import Recoil from 'recoil'
 import { Center, Split } from '../layout'
 import * as t from '../../types'
-import theme from '../../styles'
-import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict'
 import {
   Pane,
-  StatusIndicator,
-  Text,
   Heading,
   Button,
   Paragraph,
   majorScale,
-  toaster,
-  Badge
+  toaster
 } from 'evergreen-ui'
 import { HiPlusSm } from 'react-icons/hi'
 import { useFetch } from '../../hooks'
@@ -26,7 +21,7 @@ import {
   currentPlatformState
 } from '../../state/app'
 import ServiceGrid from '../ui/ServiceGrid'
-import { SceneLayout, Blink } from '../ui'
+import { SceneLayout, ServiceDetailSideSheet } from '../ui'
 
 
 export default function ServicesScene() {
@@ -105,136 +100,44 @@ export default function ServicesScene() {
   }
 
   return (
-    <SceneLayout>
-      <Split>
-        <Pane flex={1}>
-          <Split>
-            <Pane flex={1} />
-            <Button appearance='primary' iconBefore={<HiPlusSm />} onClick={createService}>
-              Add Service
-            </Button>
-          </Split>
-          {services.length === 0 && (
-            <Center height='50vh'>
-              <Pane
-                backgroundColor='#FFFFFF'
-                padding={majorScale(4)}
-                borderRadius={4}
-              >
-                <Heading>No Services</Heading>
-                <Paragraph marginBottom={majorScale(2)}>
-                  This platform has no service
-                </Paragraph>
-                <Pane>
-                  <Button onClick={createService}>Create</Button>
-                </Pane>
-              </Pane>
-            </Center>
-          )}
-          {servicesWithDeployments.length > 0 && (
-            <ServiceGrid
-              services={services}
-              onSelect={handleServiceSelection}
-              onDeploy={deployService}
-            />
-          )}
-        </Pane>
-        <Pane
-          width='33%'
-          paddingLeft={majorScale(4)}
-        >
-          {currentService && (
-            <ServiceDetailsPanel
-              service={currentService}
-              onDeploy={() => deployService(currentService)}
-            />
-          )}
-        </Pane>
+    <SceneLayout subtitle='Services'>
+      <ServiceDetailSideSheet
+        isShown={currentService !== null}
+        service={currentService!}
+        onClose={() => setSelectedServiceId(null)}
+      />
+      <Split marginBottom={majorScale(4)}>
+        <Pane flex={1} />
+        <Button appearance='primary' iconBefore={<HiPlusSm />} onClick={createService}>
+          Add Service
+        </Button>
       </Split>
-    </SceneLayout>
-  )
-}
-
-const ServiceDetailsPanel = ({
-  service,
-  onDeploy
-}: {
-  service: t.Service | null
-  onDeploy: () => void
-}) => {
-
-  const { latestDeployment: deployment } = service ?? {}
-
-  const deployStarted = deployment
-    ? formatDistanceToNowStrict(new Date(deployment.startedAt), { addSuffix: true })
-    : null
-
-  const deployStatusColor = (): 'danger' | 'success' | 'warning' | 'disabled' => {
-    if (!deployment) return 'disabled'
-    const statusMap: Record<t.DeploymentStatus, 'danger' | 'success' | 'warning' | 'disabled'> = {
-      'canceled': 'danger',
-      'success': 'success',
-      'failed': 'danger',
-      'in_progress': 'warning',
-      'queued': 'warning',
-      'partial_success': 'danger'
-    }
-    return statusMap[deployment.status] as any
-  }
-
-  const statusColor = deployStatusColor()
-
-  const getVersion = (): string => {
-    const version = deployment?.attributes.version
-    return version ? `v${version}` : ''
-  }
-
-  return (
-    <Pane
-      backgroundColor={theme.colors.grey100}
-      padding={majorScale(2)}
-      borderRadius={4}
-      minHeight='60vh'
-    >
-      {service && (
-        <Pane>
-          <Pane>
-            <Heading size={800}>{service.name}</Heading>
+      {services.length === 0 && (
+        <Center height='50vh'>
+          <Pane
+            backgroundColor='#FFFFFF'
+            padding={majorScale(4)}
+            borderRadius={4}
+          >
+            <Heading>No Services</Heading>
+            <Paragraph marginBottom={majorScale(2)}>
+              This platform has no service
+            </Paragraph>
+            <Pane>
+              <Button onClick={createService}>Create</Button>
+            </Pane>
           </Pane>
-          <Pane marginBottom={majorScale(2)}>
-            <Badge marginRight={majorScale(1)}>{service.type}</Badge>
-            <Badge marginRight={majorScale(1)}>{service.provider}</Badge>
-            <Badge>{service.service}</Badge>
-          </Pane>
-          <Pane marginBottom={majorScale(1)}>
-            <Split marginBottom={majorScale(1)}>
-              <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Link:</Heading>
-              <Text>{deployment?.attributes?.baseUrl ?? 'none'}</Text>
-            </Split>
-            <Split marginBottom={majorScale(1)}>
-              <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Deployed:</Heading>
-              <Text>{capitalize(deployStarted)}</Text>
-            </Split>
-            <Split>
-              <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Status:</Heading>
-              <Badge marginRight={majorScale(1)}>{deployment?.status}</Badge>
-              <Blink $blink={statusColor === 'warning'}>
-                <StatusIndicator color={statusColor} />
-              </Blink>
-            </Split>
-            <Text flex={1}>{getVersion()}</Text>
-          </Pane>
-          <Pane marginBottom={majorScale(1)}>
-            <Button onClick={onDeploy}>Redeploy</Button>
-          </Pane>
+        </Center>
+      )}
+      {servicesWithDeployments.length > 0 && (
+        <Pane paddingBottom={majorScale(4)}>
+          <ServiceGrid
+            services={services}
+            onSelect={handleServiceSelection}
+            onDeploy={deployService}
+          />
         </Pane>
       )}
-    </Pane>
+    </SceneLayout>
   )
-}
-
-
-const capitalize = (str: string | null) => {
-  if (!str) return ''
-  return `${str[0].toUpperCase()}${str.slice(1)}`
 }

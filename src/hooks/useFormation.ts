@@ -11,6 +11,7 @@ export const useFormation = <T, K extends { [key: string]: yup.AnySchema } = {}>
   const hasError = Object.keys(form.formState.errors).length > 0
   return {
     watch: form.watch,
+    trigger: form.trigger,
     register: form.register,
     createHandler: form.handleSubmit,
     isDirty: form.formState.isDirty,
