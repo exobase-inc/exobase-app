@@ -3,7 +3,7 @@ import Shimmer from './Shimmer'
 import { Split } from '../layout'
 import { HiOutlineEye, HiUpload } from 'react-icons/hi'
 import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict'
-import { Blink } from '../ui'
+import { DeploymentStatusBadge } from '../ui'
 import theme from '../../styles'
 import {
   majorScale,
@@ -13,8 +13,7 @@ import {
   Heading,
   Button,
   IconButton,
-  Badge,
-  StatusIndicator
+  Badge
 } from 'evergreen-ui'
 
 
@@ -88,21 +87,6 @@ const ServiceGridItem = ({
     ? formatDistanceToNowStrict(new Date(deployment.startedAt), { addSuffix: true })
     : null
 
-  const deployStatusColor = (): 'danger' | 'success' | 'warning' | 'disabled' => {
-    if (!deployment) return 'disabled'
-    const statusMap: Record<t.DeploymentStatus, 'danger' | 'success' | 'warning' | 'disabled'> = {
-      'canceled': 'danger',
-      'success': 'success',
-      'failed': 'danger',
-      'in_progress': 'warning',
-      'queued': 'warning',
-      'partial_success': 'danger'
-    }
-    return statusMap[deployment.status] as any
-  }
-
-  const statusColor = deployStatusColor()
-
   const getVersion = (): string => {
     const version = deployment?.attributes?.version
     return version ? `v${version}` : ''
@@ -156,10 +140,7 @@ const ServiceGridItem = ({
           </Split>
           <Split>
             <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Status:</Heading>
-            <Badge marginRight={majorScale(1)}>{deployment?.status}</Badge>
-            <Blink $blink={statusColor === 'warning'}>
-              <StatusIndicator color={statusColor} />
-            </Blink>
+            <DeploymentStatusBadge deployment={deployment} />
           </Split>
           <Text flex={1}>{getVersion()}</Text>
         </>

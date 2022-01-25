@@ -33,8 +33,8 @@ import {
   StackConfigForm,
   WizardProgress
 } from '../ui'
-import { STACK_CONFIGS, stackConfigDefaults } from '../../stacks'
 import { HiArrowLeft, HiArrowRight } from 'react-icons/hi'
+import { getDefaultStackConfig } from '../stacks/defaults'
 
 
 type Step = 'name-tags-language'
@@ -77,8 +77,7 @@ export default function CreateServiceScene() {
     tags: []
   })
 
-  const serviceKey = `${state.type}:${state.provider}:${state.service}` as t.ExobaseServiceKey
-  const stackConfig = STACK_CONFIGS[serviceKey]
+  const stackKey = `${state.type}:${state.provider}:${state.service}` as t.StackKey
 
   const handleNameTagsLanguage = (data: { name: string, tags: string[], language: t.Language }) => {
     setState({
@@ -266,9 +265,9 @@ export default function CreateServiceScene() {
           {state.step === 'config' && (
             <ServiceConfigForm
               initConfig={state.config}
-              platform={currentPlatform!}
+              platformName={currentPlatform?.name ?? ''}
               serviceName={state.name!}
-              stackConfig={stackConfig}
+              stack={stackKey}
               onBack={setStep('source-review')}
               onSubmit={handleConfig}
             />
@@ -528,7 +527,7 @@ const TypeProviderServiceForm = ({
   }
   const PROVIDER_SERVICE_TYPE = {
     aws: {
-      api: [{
+      'api': [{
         key: 'lambda',
         label: 'Lambda'
       }, {
@@ -549,6 +548,18 @@ const TypeProviderServiceForm = ({
       }, {
         key: 'ec2',
         label: 'EC2'
+      }],
+      'static-website': [{
+        key: 's3',
+        label: 'S3'
+      }, {
+        key: 'ec2',
+        label: 'EC2',
+        comingSoon: true
+      }],
+      'task-runner': [{
+        key: 'code-build',
+        label: 'Code Build'
       }]
     }
   } as any as Record<t.CloudProvider, Record<t.ExobaseService, { key: t.CloudService, label: string, comingSoon?: boolean }[]>>
@@ -563,11 +574,13 @@ const TypeProviderServiceForm = ({
           selected={state.type}
           choices={[{
             label: 'Static Website',
-            key: 'static-website',
-            comingSoon: true
+            key: 'static-website'
           }, {
             label: 'API',
             key: 'api'
+          }, {
+            label: 'Task Runner',
+            key: 'task-runner'
           }, {
             label: 'Websocket Server',
             key: 'websocket-server',
@@ -624,40 +637,53 @@ const TypeProviderServiceForm = ({
 
 const ServiceConfigForm = ({
   initConfig,
-  platform,
+  platformName,
   serviceName,
-  stackConfig,
+  stack,
   onSubmit,
   onBack
 }: {
   initConfig: t.ServiceConfig | null
-  platform: t.Platform
+  platformName: string
   serviceName: string
-  stackConfig: t.StackConfig
+  stack: t.StackKey,
   onSubmit: (config: t.ServiceConfig) => void
   onBack: () => void
 }) => {
 
-  const [config, setConfig] = useState<t.ServiceConfig>(initConfig ?? {
-    type: stackConfig.stack,
-    environmentVariables: [],
-    stack: stackConfigDefaults(stackConfig)
+  const [envVars, setEnvVars] = useState<t.EnvironmentVariable[]>(initConfig?.environmentVariables ?? [])
+  const [stackConfig, setStackConfig] = useState<{
+    config: t.AnyStackConfig | null
+    isValid: boolean
+  }>({
+    config: initConfig?.stack ?? getDefaultStackConfig(stack) ?? null,
+    isValid: true // Assuming that the default config set deeper down is initally valid
   })
+
+  const config: t.ServiceConfig = {
+    type: stack,
+    environmentVariables: envVars,
+    stack: stackConfig.config as any
+  }
 
   return (
     <Pane>
       <StackConfigForm
         value={config}
-        platform={platform}
+        platformName={platformName}
         serviceName={serviceName}
-        stackConfig={stackConfig}
-        onChange={setConfig}
+        stack={stack}
+        onStackConfigChange={setStackConfig}
+        onEnvVarChange={setEnvVars}
       />
       <Split marginTop={majorScale(4)}>
         <Pane flex={1}>
           <BackButton onClick={onBack} />
         </Pane>
-        <NextButton onClick={() => onSubmit(config)} />
+        <NextButton 
+          disabled={!stackConfig.isValid} 
+          onClick={() => onSubmit(config)} 
+        />
       </Split>
     </Pane>
   )
@@ -716,10 +742,18 @@ const ServiceDomainForm = ({
             <Pane marginX={majorScale(1)}>
               <Strong>.</Strong>
             </Pane>
-            <Select onChange={(e: any) => setDomain(e.target.value)}>
+            <Select
+              value={domain || '_none_selected'} 
+              onChange={(e: any) => setDomain(e.target.value)}
+            >
               <option value='_none_selected'>Select Domain</option>
               {domains.map(d => (
-                <option selected={domain === d.domain} value={d.domain}>{d.domain}</option>
+                <option 
+                  key={d.domain}
+                  value={d.domain}
+                >
+                  {d.domain}
+                </option>
               ))}
             </Select>
           </Split>

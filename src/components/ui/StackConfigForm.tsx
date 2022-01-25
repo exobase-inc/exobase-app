@@ -3,30 +3,32 @@ import { useState } from 'react'
 import * as t from '../../types'
 import {
   Pane,
-  TextInputField,
   majorScale,
-  Link,
 } from 'evergreen-ui'
-import { useFormation } from '../../hooks'
-import * as yup from 'yup'
 import {
   EnvironmentVariableForm,
   CloseablePane
 } from '../ui'
+import StackForm from '../stacks/Form'
 
 
 export default function StackConfigForm({
   value,
-  platform,
+  platformName,
   serviceName,
-  stackConfig,
-  onChange
+  stack,
+  onStackConfigChange,
+  onEnvVarChange
 }: {
   value: t.ServiceConfig
-  platform: t.Platform
+  platformName: string
   serviceName: string
-  stackConfig: t.StackConfig
-  onChange?: (config: t.ServiceConfig) => void
+  stack: t.StackKey
+  onStackConfigChange?: (update: {
+    isValid: boolean
+    config: t.AnyStackConfig
+  }) => void
+  onEnvVarChange?: (envvars: t.EnvironmentVariable[]) => void
 }) {
 
   const [envVars, setEnvVars] = useState<t.EnvironmentVariable[]>(value.environmentVariables ?? [{
@@ -35,60 +37,9 @@ export default function StackConfigForm({
     isSecret: false
   }])
 
-  const yupSchemaForInputType = (type: t.StackConfigInputType) => {
-    if (type === 'handler') {
-      return yup.string().matches(/^\w+?\.\w+?$/, {
-        excludeEmptyString: true,
-        message: 'Requires {module}.{function} format'
-      }).required('Field is required')
-    }
-    if (type === 'number') {
-      return yup.number().min(0)
-    }
-    return yup.mixed()
-  }
-
-  const schema = stackConfig.inputs.reduce((acc, input) => ({
-    ...acc, [input.key]: yupSchemaForInputType(input.type)
-  }), {})
-
-  const form = useFormation(schema, value.stack ?? {})
-  const formValue = form.watch()
-
-  const getConfigInputComponent = (type: t.StackConfigInputType) => {
-    if (type === 'handler') return TextInputField
-    if (type === 'number') return TextInputField
-    return TextInputField
-  }
-
-  const inputs = stackConfig.inputs.map(input => ({
-    ...input,
-    Component: getConfigInputComponent(input.type)
-  }))
-
-  const handleStackConfigChange = async () => {
-    const isValid = await form.trigger()
-    if (!isValid) {
-      return
-    }
-    onChange?.({
-      type: stackConfig.stack,
-      environmentVariables: envVars.filter(e => (e.name?.length ?? 0) > 0),
-      stack: formValue as Record<string, string | number | boolean>
-    })
-  }
-
   const handleEnvVarsChange = async (newEnvVars: t.EnvironmentVariable[]) => {
     setEnvVars(newEnvVars)
-    const isValid = await form.trigger()
-    if (!isValid) {
-      return
-    }
-    onChange?.({
-      type: stackConfig.stack,
-      environmentVariables: newEnvVars.filter(e => (e.name?.length ?? 0) > 0),
-      stack: formValue as Record<string, string | number | boolean>
-    })
+    onEnvVarChange?.(newEnvVars.filter(e => (e.name?.length ?? 0) > 0))
   }
 
   return (
@@ -118,7 +69,7 @@ export default function StackConfigForm({
             isSecret: false
           }, {
             name: 'EXOBASE_PLATFORM',
-            value: `${platform.name}`,
+            value: `${platformName}`,
             isSecret: false
           }, {
             name: 'EXOBASE_SERVICE',
@@ -131,32 +82,11 @@ export default function StackConfigForm({
         label='Advanced Configuration'
         marginTop={majorScale(3)}
       >
-        <Pane width='100%' marginTop={majorScale(2)}>
-          {inputs.map((input) => {
-            const props = form.register(input.key as any as never)
-            const overrideProps = {
-              ...props,
-              onChange: (e: any) => {
-                props.onChange(e)
-                handleStackConfigChange()
-              }
-            }
-            return (
-              <input.Component
-                key={input.key}
-                marginTop={majorScale(3)}
-                label={input.label}
-                hint={(
-                  <Link href={input.infoLink ?? '#'}>learn more</Link>
-                )}
-                description={input.description}
-                placeholder={input.placeholder}
-                validationMessage={(form.errors as any)[input.key]?.message}
-                {...overrideProps}
-              />
-            )
-          })}
-        </Pane>
+        <StackForm
+          stack={stack}
+          value={value.stack}
+          onChange={onStackConfigChange}
+        />
       </CloseablePane>
     </Pane>
   )

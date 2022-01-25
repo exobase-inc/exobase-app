@@ -3,16 +3,17 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
-    "@exobase/client-js": "^0.0.28",
+    "@exobase/client-js": "^0.0.45",
     "@hookform/resolvers": "^2.8.4",
     "@octokit/core": "^3.5.1",
     "add": "^2.0.6",
     "date-fns": "^2.27.0",
     "evergreen-ui": "^6.6.3",
     "git-url-parse": "^11.6.0",
+    "lodash.debounce": "^4.0.8",
     "magic-sdk": "^6.2.1",
     "query-string": "^7.0.1",
-    "radash": "^1.4.0",
+    "radash": "^1.5.2",
     "react": "^17.0.2",
     "react-confetti": "^6.0.1",
     "react-dom": "^17.0.2",
@@ -32,7 +33,8 @@
     "dev": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "reinstall": "yarn remove @exobase/client-js && yarn add @exobase/client-js"
   },
   "eslintConfig": {
     "extends": [
@@ -58,6 +60,7 @@
     "@testing-library/user-event": "^12.1.10",
     "@types/git-url-parse": "^9.0.1",
     "@types/jest": "^26.0.15",
+    "@types/lodash.debounce": "^4.0.6",
     "@types/node": "^12.0.0",
     "@types/react": "^17.0.0",
     "@types/react-dom": "^17.0.0",

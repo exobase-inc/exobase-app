@@ -29,7 +29,6 @@ export default function ServicesScene() {
   const navigate = useNavigate()
 
   // Local State
-  const [deployments, setDeployments] = useState<t.Deployment[]>([])
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
 
   // Global State
@@ -38,7 +37,6 @@ export default function ServicesScene() {
 
   // API Requests
   const getPlatformRequest = useFetch(api.platforms.getById)
-  const getDeploymentsRequest = useFetch(api.deployments.getLatest)
   const deployRequest = useFetch(api.services.deploy)
 
   const deployService = async (service: t.Service) => {
@@ -63,33 +61,13 @@ export default function ServicesScene() {
     setCurrentPlatform(data.platform)
   }
 
-  const getDeployments = async () => {
-    const { error, data } = await getDeploymentsRequest.fetch({}, { token: idToken! })
-    if (error) {
-      console.error(error)
-      toaster.danger(error.details)
-      return
-    }
-    setDeployments(data.deployments)
-  }
-
-
   useEffect(() => {
     if (!currentPlatform?.id) return
     getPlatform()
   }, [currentPlatform?.id])
 
-  useEffect(() => {
-    if (!currentPlatform?.id) return
-    getDeployments()
-  }, [currentPlatform?.id])
-
-  const services = currentPlatform?.services ?? []
-  const servicesWithDeployments = services.map(s => ({
-    ...s,
-    latestDeployment: deployments.find(d => d.serviceId === s?.id) ?? null
-  }))
-  const currentService = servicesWithDeployments.find(s => s.id === selectedServiceId) ?? null
+  const services = _.sort(currentPlatform?.services ?? [], s => s.createdAt ?? 0)
+  const currentService = services.find(s => s.id === selectedServiceId) ?? null
 
   const createService = () => {
     navigate('/services/new')
@@ -129,7 +107,7 @@ export default function ServicesScene() {
           </Pane>
         </Center>
       )}
-      {servicesWithDeployments.length > 0 && (
+      {services.length > 0 && (
         <Pane paddingBottom={majorScale(4)}>
           <ServiceGrid
             services={services}

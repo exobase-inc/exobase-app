@@ -10,9 +10,8 @@ export interface EntityIdentifier {
 export type Language = t.Language
 export type CloudProvider = t.CloudProvider
 export type CloudService = t.CloudService
-export type ExobaseService = t.ExobaseService | 'static-website'
+export type ExobaseService = t.ExobaseService
 export type StackKey = t.StackKey
-export type ExobaseServiceKey = t.ExobaseServiceKey
 export type DeploymentStatus = t.DeploymentStatus
 export type ServiceConfig = t.ServiceConfig
 export type ServiceDomainConfig = t.ServiceDomainConfig
@@ -78,24 +77,10 @@ export type HerokuProviderConfig = {
 
 }
 
-//
-//  STACK CONFIGS
-//
-
-export type StackConfigInputType =  'number' | 'string' | 'boolean' | 'handler'
-
-export interface StackConfig {
-  stack: ExobaseServiceKey
-  inputs: {
-    label: string
-    description: string
-    infoLink: string
-    key: string
-    type: StackConfigInputType
-    init: string | number | boolean
-    placeholder?: string
-  }[]
-}
+export type AnyStackConfig = t.AnyStackConfig
+export type ApiAWSLambdaStackConfig = t.ApiAWSLambdaStackConfig
+export type StaticWebsiteAWSS3StackConfig = t.StaticWebsiteAWSS3StackConfig
+export type TaskRunnerAWSCodeBuildStackConfig = t.TaskRunnerAWSCodeBuildStackConfig
 
 export interface EnvironmentVariable {
   name: string

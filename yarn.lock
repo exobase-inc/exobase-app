@@ -1366,20 +1366,20 @@
     "@ethersproject/rlp" "^5.5.0"
     "@ethersproject/signing-key" "^5.5.0"
 
-"@exobase/api@^0.0.6":
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/@exobase/api/-/api-0.0.6.tgz#326ce5145057998110173f1d65ae100e6f38e008"
-  integrity sha512-lIWmmcOM1SWDlvmLZb93nhCBsW45EHCWZDmrBOhkMsQWtWSelBOiDFLLwJU7pzRP9rQNOHsy+zM3Khwd1FJbew==
+"@exobase/client-builder@^0.0.2-alpha.2":
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/@exobase/client-builder/-/client-builder-0.0.2.tgz#b1014e5a1fd1841cd1a5aa407820fe4afee8a69d"
+  integrity sha512-b7ErZQtQvhf1vwg6M35jw//vLxkdr2EK7fhAE/HIrE290RuoHyKMzl4nLa+3crSnGbQUZqYaLUn9qQdgVHGSWA==
   dependencies:
     axios "^0.24.0"
-    radash "^1.2.0"
+    radash "^1.5.2"
 
-"@exobase/client-js@^0.0.28":
-  version "0.0.28"
-  resolved "https://registry.yarnpkg.com/@exobase/client-js/-/client-js-0.0.28.tgz#492e2d01709aa64d057fbbcc3d38e870846a4193"
-  integrity sha512-q0HF4pLhw6ICoOuyvFE4smIRDtoLzKpPg569G4TKqPzvFPYlGx+dFAEQiJPg9KPbj7HUXy7OrhFRgvVvt8fZQQ==
+"@exobase/client-js@^0.0.45":
+  version "0.0.45"
+  resolved "https://registry.yarnpkg.com/@exobase/client-js/-/client-js-0.0.45.tgz#b375ea42e3d7d01e20f6dbd779c1e43fe298802c"
+  integrity sha512-yhxs5Eh/Igc6lGTYAFy60J4ETq3qlA/WfDiRzLBz2zRqenSDy4cH7na1+X/3dwb/kdCd44bQxw8SrmZLSLBkQA==
   dependencies:
-    "@exobase/api" "^0.0.6"
+    "@exobase/client-builder" "^0.0.2-alpha.2"
 
 "@gar/promisify@^1.0.1":
   version "1.1.2"
@@ -2130,6 +2130,18 @@
   version "0.0.29"
   resolved "https://registry.yarnpkg.com/@types/json5/-/json5-0.0.29.tgz#ee28707ae94e11d2b827bcbe5270bcea7f3e71ee"
   integrity sha1-7ihweulOEdK4J7y+UnC86n8+ce4=
+
+"@types/lodash.debounce@^4.0.6":
+  version "4.0.6"
+  resolved "https://registry.yarnpkg.com/@types/lodash.debounce/-/lodash.debounce-4.0.6.tgz#c5a2326cd3efc46566c47e4c0aa248dc0ee57d60"
+  integrity sha512-4WTmnnhCfDvvuLMaF3KV4Qfki93KebocUF45msxhYyjMttZDQYzHkO639ohhk8+oco2cluAFL3t5+Jn4mleylQ==
+  dependencies:
+    "@types/lodash" "*"
+
+"@types/lodash@*":
+  version "4.14.178"
+  resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.14.178.tgz#341f6d2247db528d4a13ddbb374bcdc80406f4f8"
+  integrity sha512-0d5Wd09ItQWH1qFbEyQ7oTQ3GZrMfth5JkbN3EvTKLXcHLRDSXeLnlvlOn0wvxVIwK5o2M8JzP/OWz7T3NRsbw==
 
 "@types/lodash@^4.14.175":
   version "4.14.177"
@@ -5775,9 +5787,9 @@ follow-redirects@^1.0.0:
   integrity sha512-wtphSXy7d4/OR+MvIFbCVBDzZ5520qV8XfPklSN5QtxuMUJZ+b0Wnst1e1lCDocfzuCkHqj8k0FpZqO+UIaKNA==
 
 follow-redirects@^1.14.4:
-  version "1.14.6"
-  resolved "https://registry.yarnpkg.com/follow-redirects/-/follow-redirects-1.14.6.tgz#8cfb281bbc035b3c067d6cd975b0f6ade6e855cd"
-  integrity sha512-fhUl5EwSJbbl8AR+uYL2KQDxLkdSjZGR36xy46AO7cOMTrCMON6Sa28FmAnC2tRTDbd/Uuzz3aJBv7EBN7JH8A==
+  version "1.14.7"
+  resolved "https://registry.yarnpkg.com/follow-redirects/-/follow-redirects-1.14.7.tgz#2004c02eb9436eee9a21446a6477debf17e81685"
+  integrity sha512-+hbxoLbFMbRKDwohX8GkTataGqO6Jb7jGwpAlwgy2bIz25XtRm7KEzJM76R1WiNT5SwZkX4Y75SwBolkpmE7iQ==
 
 for-in@^1.0.2:
   version "1.0.2"
@@ -10042,15 +10054,10 @@ queue-microtask@^1.2.2:
   resolved "https://registry.yarnpkg.com/queue-microtask/-/queue-microtask-1.2.3.tgz#4929228bbc724dfac43e0efb058caf7b6cfb6243"
   integrity sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==
 
-radash@^1.2.0:
-  version "1.5.1"
-  resolved "https://registry.yarnpkg.com/radash/-/radash-1.5.1.tgz#9765f0871b0333cf1404d3d94dde52e12e90b2fd"
-  integrity sha512-h42Frxn36zUhHQ2JG05xUu1fhGLRhOqFOg1O0aSp4VRk03m0Zk7BnM3mqVtEbqT7jQ4XI24gnTkriajlNnk2oA==
-
-radash@^1.4.0:
-  version "1.4.0"
-  resolved "https://registry.yarnpkg.com/radash/-/radash-1.4.0.tgz#dd008c21be16dd9aec07dd2a86d42f4e1fbedfbd"
-  integrity sha512-KkqYaQ/muPFxlO1tMcSkFFJ73TlBwOpIwUzBPLbr/Sne3JbOYscmOM5ZuQ32jurlgpx7c1aDYVFuYpvu3LFCTw==
+radash@^1.5.2:
+  version "1.5.2"
+  resolved "https://registry.yarnpkg.com/radash/-/radash-1.5.2.tgz#35029259b22e6f420f94402b1a1dc8dec2319d97"
+  integrity sha512-3G5h7O51h3YhjjUKvVL2aaQx1LWQXxlp6CFhFEpfRaBoR4gfeLc7QV0kvfHHoOMooX2C7HBqc2CG7stPhZcs7A==
 
 raf@^3.4.1:
   version "3.4.1"

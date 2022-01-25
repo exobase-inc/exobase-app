@@ -1,8 +1,9 @@
 
 const config = {
   apiUrl: 'http://localhost:7700',
-  // apiUrl: 'https://sortinghat-api.vercel.app',
-  magicKey: 'pk_live_6622B41D8054287D'
+  // apiUrl: 'https://x-api.exobase.cloud',
+  magicKey: 'pk_live_707A973939F6A0BA',
+  waitlistKey: 'UD8UAA'
 }
 
 export default config

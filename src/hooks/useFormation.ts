@@ -14,6 +14,7 @@ export const useFormation = <T, K extends { [key: string]: yup.AnySchema } = {}>
     trigger: form.trigger,
     register: form.register,
     createHandler: form.handleSubmit,
+    setValue: form.setValue,
     isDirty: form.formState.isDirty,
     isValid: form.formState.isValid,
     errors: form.formState.errors,

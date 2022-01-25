@@ -11,7 +11,10 @@ const theme = {
     grey300: '#b5b5b5',
     grey800: '#3b3b3b',
     grey900: '#242424',
-    grey999: '#0f0f0f'
+    grey999: '#0f0f0f',
+
+    // Intents
+    danger: '#D14343'
 
   }
 }

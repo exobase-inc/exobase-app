@@ -19,6 +19,7 @@ import { HiRefresh, HiOutlineCog } from 'react-icons/hi'
 import { BsGithub } from 'react-icons/bs'
 import api from '../../api'
 import { SelectList } from '../ui'
+import debounce from 'lodash.debounce'
 
 
 export default function GitHubSourceSearch({
@@ -379,11 +380,11 @@ const GitHubSourceInput = ({
 }: {
   onChange: (source: { repo: string, owner: string }) => void
 }) => {
-  const handleLink = (link: string) => {
+  const handleLink = debounce((link: string) => {
     if (!link) return
     const { name: repo, owner } = GitUrlParse(link)
     onChange({ repo, owner })
-  }
+  }, 600)
   return (
     <TextInputField
       label="Open Source Link"

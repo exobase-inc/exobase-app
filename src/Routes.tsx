@@ -17,6 +17,7 @@ import DomainsScene from './components/scenes/DomainsScene'
 import PlatformScene from './components/scenes/PlatformScene'
 import CreateDomainScene from './components/scenes/CreateDomainScene'
 import GithubAppInstalledScene from './components/scenes/GithubAppInstalledScene'
+import DeploymentScene from './components/scenes/DeploymentScene'
 
 const GuardAuth = ({
   children
@@ -162,6 +163,13 @@ export default function AppRoutes() {
           <GuardAuth>
             <GuardState>
               <CreateDomainScene />
+            </GuardState>
+          </GuardAuth>
+        )} />
+        <Route path="/deployments/:id" element={(
+          <GuardAuth>
+            <GuardState>
+              <DeploymentScene />
             </GuardState>
           </GuardAuth>
         )} />

@@ -1,7 +1,12 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect } from 'react'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
-import { currentPlatformState, idTokenState, updateServiceState } from '../../state/app'
+import {
+  currentPlatformState,
+  idTokenState,
+  updateServiceAction,
+  removeServiceAction
+} from '../../state/app'
 import _ from 'radash'
 import * as t from '../../types'
 import {
@@ -12,21 +17,29 @@ import {
   Paragraph,
   Tablist,
   Link,
+  Strong,
   Text,
   Tab,
   Button,
   Badge,
+  Dialog,
+  TextInput,
   Card,
   majorScale,
   IconButton,
   Spinner,
   toaster
 } from 'evergreen-ui'
-import { STACK_CONFIGS } from '../../stacks'
-import { Split } from '../layout'
+import { Split, Center } from '../layout'
 import { BiCopy } from 'react-icons/bi'
 import { IoIosRocket } from 'react-icons/io'
-import { HiOutlineCog, HiX, HiRefresh } from 'react-icons/hi'
+import {
+  HiOutlineCog,
+  HiX,
+  HiRefresh,
+  HiOutlineTrash,
+  HiOutlineExclamation
+} from 'react-icons/hi'
 import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict'
 import formatDistance from 'date-fns/formatDistance'
 import api from '../../api'
@@ -39,6 +52,8 @@ import {
   GitHubSourceSearch,
   Shimmer
 } from '../ui'
+import theme from '../../styles'
+import { useNavigate } from 'react-router-dom'
 
 
 type TabName = 'deployments'
@@ -56,12 +71,10 @@ export default function ServiceDetailSideSheet({
   onClose?: () => void
 }) {
 
-  console.log('service: ', service)
-
   const idToken = useRecoilValue(idTokenState)
   const platform = useRecoilValue(currentPlatformState)
 
-  const [tab, setTab] = useState<TabName>('functions')
+  const [tab, setTab] = useState<TabName>('deployments')
   return (
     <SideSheet
       isShown={isShown}
@@ -100,8 +113,44 @@ const SideSheetBody = ({
   idToken: string
   onTabChange?: (tab: TabName) => void
 }) => {
+  const [showDestroyDialog, setShowDestroyDialog] = useState(false)
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false)
+  const updateServiceState = useSetRecoilState(updateServiceAction)
+  const removeServiceState = useSetRecoilState(removeServiceAction)
+  const destroyServiceRequest = useFetch(api.services.destroy)
+  const removeServiceRequest = useFetch(api.services.remove)
+
+  const destroy = async () => {
+    const { error, data } = await destroyServiceRequest.fetch({
+      serviceId: service.id
+    }, { token: idToken })
+    if (error) {
+      console.error(error)
+      toaster.danger(error.details)
+      return
+    }
+    updateServiceState({
+      ...service,
+      latestDeployment: data.deployment,
+      latestDeploymentId: data.deployment.id,
+      deployments: [...service.deployments, data.deployment]
+    })
+    setShowDestroyDialog(false)
+  }
+  const remove = async () => {
+    const { error } = await removeServiceRequest.fetch({
+      serviceId: service.id
+    }, { token: idToken })
+    if (error) {
+      console.error(error)
+      toaster.danger(error.details)
+      return
+    }
+    removeServiceState(service)
+    setShowRemoveDialog(false)
+  }
   const url = (() => {
-    const u = service.latestDeployment?.attributes?.url
+    const u = service.activeDeployment?.attributes?.url
     if (!u) return null
     if (u.startsWith('http')) return u
     return `https://${u}`
@@ -121,48 +170,68 @@ const SideSheetBody = ({
             <DeploymentStatusBadge deployment={service.latestDeployment} />
           </Split>
           <Split alignItems='center'>
-            <Pane flex={1}>
-              <Paragraph flex={1} size={400} color="muted">
-                A {service.language} {service.type} on {service.provider} {service.service}
-              </Paragraph>
-              {service.tags && (
-                <Pane>
-                  {service.tags.map(tag => (
-                    <Badge marginRight={majorScale(1)}>{tag}</Badge>
-                  ))}
-                </Pane>
-              )}
-            </Pane>
+            <Paragraph flex={1} size={400} color="muted">
+              A {service.language} {service.type} on {service.provider} {service.service}
+            </Paragraph>
             {service.latestDeployment?.attributes?.version && (
               <Text>v{service.latestDeployment?.attributes.version}</Text>
             )}
           </Split>
-          {url && (
-            <Split alignItems='center'>
-              <Link target='_blank' href={url}>{url}</Link>
+          <Split alignItems='center'>
+            <Pane flex={1}>
+              {service.tags.map(tag => (
+                <Badge marginRight={majorScale(1)} key={tag}>{tag}</Badge>
+              ))}
+            </Pane>
+          </Split>
+          <Split alignItems='center'>
+            <Pane flex={1}>
+              {url && (
+                <>
+                  <Link target='_blank' href={url}>{url}</Link>
+                  <IconButton
+                    marginLeft={majorScale(1)}
+                    onClick={copyUrlToClipboard}
+                    appearance='minimal'
+                    icon={<BiCopy size={12} />}
+                  />
+                </>
+              )}
+            </Pane>
+            {service.hasDeployedInfrastructure && (
               <IconButton
-                marginLeft={majorScale(1)}
-                onClick={copyUrlToClipboard}
+                onClick={() => setShowDestroyDialog(true)}
                 appearance='minimal'
-                icon={<BiCopy size={12} />}
+                intent='danger'
+                icon={<HiOutlineTrash />}
               />
-            </Split>
-          )}
+            )}
+            {!service.hasDeployedInfrastructure && (
+              <IconButton
+                onClick={() => setShowRemoveDialog(true)}
+                appearance='minimal'
+                intent='danger'
+                icon={<HiOutlineTrash />}
+              />
+            )}
+          </Split>
         </Pane>
         <Pane display="flex" padding={8}>
           <Tablist>
-            <Tab
-              isSelected={tab === 'functions'}
-              onSelect={() => onTabChange?.('functions')}
-            >
-              Functions
-            </Tab>
             <Tab
               isSelected={tab === 'deployments'}
               onSelect={() => onTabChange?.('deployments')}
             >
               Deployments
             </Tab>
+            {['api'].includes(service.type) && (
+              <Tab
+                isSelected={tab === 'functions'}
+                onSelect={() => onTabChange?.('functions')}
+              >
+                Functions
+              </Tab>
+            )}
             <Tab
               isSelected={tab === 'configuration'}
               onSelect={() => onTabChange?.('configuration')}
@@ -202,6 +271,43 @@ const SideSheetBody = ({
           />
         )}
       </Pane>
+      <Dialog
+        isShown={showDestroyDialog}
+        hasHeader={false}
+        hasFooter={false}
+      >
+        <DeleteConfirmForm
+          action='destroy'
+          name={`the ${service.name} service`}
+          loading={destroyServiceRequest.loading}
+          info={`
+            This action will create a delete deployment which will tear down your service. 
+            Once that deployment has successfully completed you can delete the service 
+            from the platform.
+          `}
+          requiredValue={_.dashCase(service.name)}
+          onCancel={() => setShowDestroyDialog(false)}
+          onConfirm={destroy}
+        />
+      </Dialog>
+      <Dialog
+        isShown={showRemoveDialog}
+        hasHeader={false}
+        hasFooter={false}
+      >
+        <DeleteConfirmForm
+          action='delete'
+          name={`the ${service.name} service`}
+          loading={removeServiceRequest.loading}
+          info={`
+            This services has no deployed infrastructure. You can now delete it. 
+            This action will delete the service from the current platform.
+          `}
+          requiredValue={_.dashCase(service.name)}
+          onCancel={() => setShowRemoveDialog(false)}
+          onConfirm={remove}
+        />
+      </Dialog>
     </Pane>
   )
 }
@@ -216,7 +322,7 @@ const SourceCard = ({
   const source = service.source
   const [state, setState] = useState<'review' | 'edit'>('review')
   const idToken = useRecoilValue(idTokenState) as string
-  const updateService = useSetRecoilState(updateServiceState)
+  const updateService = useSetRecoilState(updateServiceAction)
   const updateServiceRequest = useFetch(api.services.update)
 
   const updateSource = async (newSource: t.ServiceSource) => {
@@ -238,7 +344,7 @@ const SourceCard = ({
 
   return (
     <Pane>
-      <Split marginBottom={majorScale(2)}>
+      <Split marginBottom={majorScale(2)} alignItems='center'>
         <Heading flex={1}>Source</Heading>
         {state === 'review' && (
           <Button
@@ -291,8 +397,8 @@ const FunctionsCard = ({
   service: t.Service
 }) => {
 
-  const hasBeenDeployed = !!service.latestDeploymentId
-  const functions = service.latestDeployment?.attributes?.functions ?? []
+  const hasBeenDeployed = !!service.activeDeployment
+  const functions = service.activeDeployment?.attributes?.functions ?? []
   const modules = _.unique(functions.map(f => f.module))
   const capitalize = (str: string | null) => {
     if (!str) return ''
@@ -351,8 +457,9 @@ const DeploymentsCard = ({
   service: t.Service
 }) => {
 
+  const navigate = useNavigate()
   const idToken = useRecoilValue(idTokenState) as string
-  const updateService = useSetRecoilState(updateServiceState)
+  const updateService = useSetRecoilState(updateServiceAction)
   const deployServiceRequest = useFetch(api.services.deploy)
   const listDeploymentsRequest = useFetch(api.deployments.listForService)
 
@@ -370,8 +477,13 @@ const DeploymentsCard = ({
       toaster.danger(error.details)
       return
     }
+    const latest = _.boil(data.deployments ?? [], (a, b) => {
+      return a.startedAt > b.startedAt ? a : b
+    })
     updateService({
-      ...service!,
+      ...service,
+      latestDeployment: latest,
+      latestDeploymentId: latest?.id,
       deployments: data.deployments
     })
   }
@@ -387,8 +499,14 @@ const DeploymentsCard = ({
     }
     updateService({
       ...service,
+      latestDeployment: data.deployment,
+      latestDeploymentId: data.deployment.id,
       deployments: [...service.deployments, data.deployment]
     })
+  }
+
+  const gotoDeployment = (deploymentId: string) => () => {
+    navigate(`/deployments/${deploymentId}`)
   }
 
   const deployments = _.sort(service.deployments ?? [], d => d.startedAt ?? 0, true)
@@ -402,12 +520,13 @@ const DeploymentsCard = ({
           appearance='minimal'
           onClick={listDeployments}
           icon={<HiRefresh />}
-          isLoading={listDeploymentsRequest.loading}
+          disabled={listDeploymentsRequest.loading}
         />
         <Button
           appearance='primary'
           onClick={deploy}
           iconBefore={<IoIosRocket />}
+          disabled={deployServiceRequest.loading}
           isLoading={deployServiceRequest.loading}
         >
           Deploy
@@ -456,6 +575,7 @@ const DeploymentsCard = ({
             <DeploymentCard
               deployment={deployment}
               service={service}
+              onViewLogs={gotoDeployment(deployment.id)}
             />
           </Pane>
         </Card>
@@ -466,10 +586,12 @@ const DeploymentsCard = ({
 
 const DeploymentCard = ({
   deployment,
-  service
+  service,
+  onViewLogs
 }: {
   deployment: t.Deployment
   service: t.Service
+  onViewLogs?: () => void
 }) => {
   const deployStarted = formatDistanceToNowStrict(
     new Date(deployment.startedAt),
@@ -493,7 +615,7 @@ const DeploymentCard = ({
   return (
     <>
       <Split alignItems='center'>
-        <Pane flex={1}>
+        <Pane flex={1} alignItems='center'>
           <Heading size={500}>Started {deployStarted}</Heading>
           <Text>({deployDuration})</Text>
         </Pane>
@@ -506,6 +628,7 @@ const DeploymentCard = ({
         </Pane>
         <Button
           appearance='minimal'
+          onClick={onViewLogs}
         >
           View Logs
         </Button>
@@ -523,12 +646,12 @@ const ConfigurationCard = ({
 }) => {
   const [config, setConfig] = useState(service.config)
   const idToken = useRecoilValue(idTokenState) as string
-  const updateService = useSetRecoilState(updateServiceState)
-  const updateServiceRequest = useFetch(api.services.update)
+  const updateService = useSetRecoilState(updateServiceAction)
+  const updateServiceRequest = useFetch(api.services.updateConfig)
 
   const updateConfig = async () => {
     const { error } = await updateServiceRequest.fetch({
-      id: service.id,
+      serviceId: service.id,
       config
     }, { token: idToken })
     if (error) {
@@ -536,6 +659,7 @@ const ConfigurationCard = ({
       toaster.danger(error.details)
       return
     }
+    toaster.success('Service updated')
     updateService({
       ...service,
       config
@@ -543,11 +667,12 @@ const ConfigurationCard = ({
   }
   return (
     <Pane>
-      <Split marginBottom={majorScale(2)}>
+      <Split marginBottom={majorScale(2)} alignItems='center'>
         <Heading flex={1}>Configuration</Heading>
         <Button
           appearance='primary'
           onClick={updateConfig}
+          isLoading={updateServiceRequest.loading}
           iconBefore={<HiOutlineCog />}
         >
           Update
@@ -555,11 +680,76 @@ const ConfigurationCard = ({
       </Split>
       <StackConfigForm
         value={config}
-        platform={platform}
+        platformName={platform.name}
         serviceName={service.name}
-        stackConfig={STACK_CONFIGS[config.type]}
-        onChange={setConfig}
+        stack={config.type}
+        onStackConfigChange={({ config: newStackConfig }) => {
+          setConfig({ ...config, stack: newStackConfig })
+        }}
+        onEnvVarChange={(newEnvVars) => {
+          setConfig({ ...config, environmentVariables: newEnvVars })
+        }}
       />
+    </Pane>
+  )
+}
+
+
+const DeleteConfirmForm = ({
+  action = 'delete',
+  name,
+  requiredValue,
+  info,
+  loading = false,
+  onCancel,
+  onConfirm
+}: {
+  action?: 'delete' | 'destroy'
+  name: string
+  requiredValue: string
+  info?: string
+  loading?: boolean
+  onCancel?: () => void
+  onConfirm?: () => void
+}) => {
+  const [state, setState] = useState('')
+  const valid = state === requiredValue
+  return (
+    <Pane padding={majorScale(3)}>
+      <Center>
+        <HiOutlineExclamation
+          size={50}
+          color={theme.colors.danger}
+        />
+      </Center>
+      <Heading textAlign='center' size={600}>
+        {action === 'delete' ? 'Delete' : 'Destroy'} {name}
+      </Heading>
+      <Paragraph textAlign='center' maxWidth={400} marginBottom={majorScale(3)}>
+        {info} Type <Strong><i>{requiredValue}</i></Strong> to confirm and delete.
+      </Paragraph>
+      <Center>
+        <TextInput
+          placeholder={requiredValue}
+          value={state}
+          onChange={(e: any) => setState(e.target.value)}
+        />
+      </Center>
+      <Split marginTop={majorScale(3)} justifyContent='space-between'>
+        <Button
+          onClick={onCancel}
+          appearance='minimal'
+        >cancel</Button>
+        <Button
+          onClick={onConfirm}
+          appearance='primary'
+          intent='danger'
+          isLoading={loading}
+          disabled={!valid}
+        >
+          {action}
+        </Button>
+      </Split>
     </Pane>
   )
 }

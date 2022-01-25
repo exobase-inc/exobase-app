@@ -1,4 +1,4 @@
-import { atom, selector } from 'recoil'
+import { atom, DefaultValue, selector } from 'recoil'
 import * as t from '../types'
 
 
@@ -107,22 +107,42 @@ export const addDomainState = selector<t.Domain>({
   }
 })
 
-export const updateServiceState = selector<t.Service>({
+export const updateServiceAction = selector<t.Service>({
   key: 'exo.state.app.update-service',
   get: () => {
     return {} as any as t.Service
   },
-  set: ({ get, set }, service: t.Service | any) => {
+  set: ({ get, set }, service: t.Service | DefaultValue) => {
     const platform = get(currentPlatformState)
+    const serv = service as t.Service
     if (!platform) return
     set(appState, {
       ...get(appState),
       currentPlatform: {
         ...platform,
         services: [
-          ...platform.services.filter(p => p.id !== service.id),
-          service
+          ...platform.services.filter(s => s.id !== serv.id),
+          serv
         ]
+      }
+    })
+  }
+})
+
+export const removeServiceAction = selector<t.Service>({
+  key: 'exo.state.app.remove-service',
+  get: () => {
+    return {} as any as t.Service
+  },
+  set: ({ get, set }, service: t.Service | DefaultValue) => {
+    const platform = get(currentPlatformState)
+    const serv = service as t.Service
+    if (!platform) return
+    set(appState, {
+      ...get(appState),
+      currentPlatform: {
+        ...platform,
+        services: platform.services.filter(s => s.id !== serv.id)
       }
     })
   }

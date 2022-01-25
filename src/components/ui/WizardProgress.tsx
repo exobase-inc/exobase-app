@@ -27,6 +27,7 @@ export default function WizardProgress ({
     <Split {...rest}>
       {steps.map((step) => (
         <Pane 
+          key={step}
           flex={1}
           borderRadius={8}
           backgroundColor={isActive(step) ? theme.colors.accent : theme.colors.grey200}

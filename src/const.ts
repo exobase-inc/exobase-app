@@ -8,13 +8,14 @@ export const PROVIDER_LOGOS: Record<t.CloudProvider, string> = {
   'azure': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Heroku_logo.svg/2560px-Heroku_logo.svg.png'
 } as Record<t.CloudProvider, string>
 
-export const CLOUD_SERVICE_LOGOS: Record<t.CloudService, string> = {
-  'lambda': 'https://cdn.worldvectorlogo.com/logos/aws-lambda-1.svg',
-  'ec2': 'https://cdn.worldvectorlogo.com/logos/aws-ec2.svg',
-  'ecs': 'https://cdn-boeab.nitrocdn.com/wIHbutmjexPJyeFpJDOeteQCpxUFwjzf/assets/static/optimized/rev-d7b5fdf/wp-content/uploads/2019/05/Compute_AmazonECS_LARGE2-273x300.png',
-  'cloud-run': 'https://seeklogo.com/images/G/google-cloud-run-logo-895F1305FF-seeklogo.com.png',
-  'cloud-function': 'https://seeklogo.com/images/G/google-cloud-functions-logo-AECD57BFA2-seeklogo.com.png'
-}
+// export const CLOUD_SERVICE_LOGOS: Record<t.CloudService, string> = {
+//   'lambda': 'https://cdn.worldvectorlogo.com/logos/aws-lambda-1.svg',
+//   's3': '',
+//   'ec2': 'https://cdn.worldvectorlogo.com/logos/aws-ec2.svg',
+//   'ecs': 'https://cdn-boeab.nitrocdn.com/wIHbutmjexPJyeFpJDOeteQCpxUFwjzf/assets/static/optimized/rev-d7b5fdf/wp-content/uploads/2019/05/Compute_AmazonECS_LARGE2-273x300.png',
+//   'cloud-run': 'https://seeklogo.com/images/G/google-cloud-run-logo-895F1305FF-seeklogo.com.png',
+//   'cloud-function': 'https://seeklogo.com/images/G/google-cloud-functions-logo-AECD57BFA2-seeklogo.com.png',
+// }
 
 export const PROVIDER_AUTH = {
   'vercel': [{

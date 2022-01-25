@@ -55,6 +55,10 @@ export default function DomainsScene() {
     navigate('/domains/new')
   }
 
+  const gotoLogs = (deploymentId: string) => {
+    navigate(`/deployments/${deploymentId}`)
+  }
+
   const updateSelectedDomain = () => {
 
   }
@@ -66,8 +70,6 @@ export default function DomainsScene() {
       deployment: deployments.find(d => d.domainId === domain.id) ?? null
     }
   })
-
-  console.log({ domains, deployments })
 
   const filteredDomains = domains.length > 0 && !!searchTerm
     ? domains.filter(d => d.domain.domain.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -105,6 +107,7 @@ export default function DomainsScene() {
               searchTerm={searchTerm}
               onSearchTermChange={setSearchTerm}
               onDomainSelected={updateSelectedDomain}
+              onViewLogs={gotoLogs}
               domains={filteredDomains}
               loading={getDeploymentsRequest.loading}
             />
@@ -125,12 +128,14 @@ export const DomainTable = ({
   searchTerm,
   onSearchTermChange,
   onDomainSelected,
+  onViewLogs,
   domains,
   loading
 }: {
   searchTerm: string
   onSearchTermChange: (st: string) => void
   onDomainSelected: (d: t.Domain) => void
+  onViewLogs?: (id: string) => void
   domains: { domain: t.Domain, deployment: t.DomainDeployment | null }[]
   loading: boolean
 }) => {
@@ -144,6 +149,7 @@ export const DomainTable = ({
         />
         <Table.TextHeaderCell>Cloud</Table.TextHeaderCell>
         <Table.TextHeaderCell>Status</Table.TextHeaderCell>
+        <Table.TextHeaderCell>Action</Table.TextHeaderCell>
       </Table.Head>
       <Table.Body height={240}>
         {domains.map(({ domain, deployment }) => (
@@ -163,6 +169,13 @@ export const DomainTable = ({
             {!loading && !deployment && (
               <Table.TextCell></Table.TextCell>
             )}
+            <Table.TextCell>
+              <Button 
+                onClick={() => deployment && onViewLogs?.(deployment.id)}
+              >
+                View Logs
+              </Button>
+            </Table.TextCell>
           </Table.Row>
         ))}
       </Table.Body>

@@ -25,13 +25,16 @@ export default function DeploymentStatusBadge ({
   }
   const statusLabel = (): string => {
     if (!deployment) return 'not-deployed'
+    if (deployment.type === 'destroy' && deployment.status === 'success') {
+      return 'destroyed'
+    }
     const statusMap: Record<t.DeploymentStatus, string> = {
       'canceled': 'canceled',
       'success': 'active',
       'failed': 'failed',
       'in_progress': 'deploying',
       'queued': 'queued',
-      'partial_success': 'failed'
+      'partial_success': 'partial-success'
     }
     return statusMap[deployment.status]
   }
