@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
+import _ from 'radash'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import Recoil from 'recoil'
@@ -33,6 +34,7 @@ export default function DomainsScene() {
   const [searchTerm, setSearchTerm] = useState('')
   const idToken = Recoil.useRecoilValue(idTokenState)
   const getDeploymentsRequest = useFetch(api.domainDeployments.getLatest)
+  const deployDomainRequest = useFetch(api.domains.deploy)
   const currentPlatformId = Recoil.useRecoilValue(currentPlatformIdState)
   const currentPlatform = Recoil.useRecoilValue(currentPlatformState)
 
@@ -59,15 +61,36 @@ export default function DomainsScene() {
     navigate(`/deployments/${deploymentId}`)
   }
 
+  const deployDomain = async (domainId: string) => {
+    const response = await deployDomainRequest.fetch({
+      domainId,
+      platformId: currentPlatformId
+    }, { token: idToken! })
+    if (response.error) {
+      console.error(response.error)
+      toaster.danger(response.error.details)
+      return
+    }
+    toaster.success('Deploy started')
+  }
+
   const updateSelectedDomain = () => {
 
   }
 
   const deployments = getDeploymentsRequest.data?.deployments ?? []
+  const deploymentMap = deployments.reduce((acc, deployment) => {
+    return !acc[deployment.domainId]
+      ? { ...acc, [deployment.domainId]: [deployment] }
+      : { ...acc, [deployment.domainId]: [...acc[deployment.domainId], deployment] }
+  }, {} as Record<string, t.DomainDeployment[]>)
+  const latestDeploymentMap = _.mapValues(deploymentMap, (deploymentsForDomain) => {
+    return _.sort(deploymentsForDomain, d => d.startedAt, true)[0]
+  }) as Record<string, t.DomainDeployment>
   const domains = (currentPlatform?.domains ?? []).map((domain) => {
     return {
       domain,
-      deployment: deployments.find(d => d.domainId === domain.id) ?? null
+      deployment: latestDeploymentMap[domain.id]
     }
   })
 
@@ -108,6 +131,7 @@ export default function DomainsScene() {
               onSearchTermChange={setSearchTerm}
               onDomainSelected={updateSelectedDomain}
               onViewLogs={gotoLogs}
+              onDeploy={deployDomain}
               domains={filteredDomains}
               loading={getDeploymentsRequest.loading}
             />
@@ -116,7 +140,7 @@ export default function DomainsScene() {
             width='33%'
             paddingLeft={majorScale(4)}
           >
-            
+
           </Pane>
         </Split>
       )}
@@ -129,6 +153,7 @@ export const DomainTable = ({
   onSearchTermChange,
   onDomainSelected,
   onViewLogs,
+  onDeploy,
   domains,
   loading
 }: {
@@ -136,6 +161,7 @@ export const DomainTable = ({
   onSearchTermChange: (st: string) => void
   onDomainSelected: (d: t.Domain) => void
   onViewLogs?: (id: string) => void
+  onDeploy?: (id: string) => void
   domains: { domain: t.Domain, deployment: t.DomainDeployment | null }[]
   loading: boolean
 }) => {
@@ -169,13 +195,22 @@ export const DomainTable = ({
             {!loading && !deployment && (
               <Table.TextCell></Table.TextCell>
             )}
-            <Table.TextCell>
-              <Button 
-                onClick={() => deployment && onViewLogs?.(deployment.id)}
-              >
-                View Logs
-              </Button>
-            </Table.TextCell>
+            <Table.Cell>
+              <Pane>
+                <Button
+                  onClick={() => deployment && onViewLogs?.(deployment.id)}
+                >
+                  View Logs
+                </Button>
+                {deployment?.status === 'failed' && (
+                  <Button
+                    onClick={() => onDeploy?.(domain.id)}
+                  >
+                    Redeploy
+                  </Button>
+                )}
+              </Pane>
+            </Table.Cell>
           </Table.Row>
         ))}
       </Table.Body>

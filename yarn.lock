@@ -1374,10 +1374,10 @@
     axios "^0.24.0"
     radash "^1.5.2"
 
-"@exobase/client-js@^0.0.45":
-  version "0.0.45"
-  resolved "https://registry.yarnpkg.com/@exobase/client-js/-/client-js-0.0.45.tgz#b375ea42e3d7d01e20f6dbd779c1e43fe298802c"
-  integrity sha512-yhxs5Eh/Igc6lGTYAFy60J4ETq3qlA/WfDiRzLBz2zRqenSDy4cH7na1+X/3dwb/kdCd44bQxw8SrmZLSLBkQA==
+"@exobase/client-js@^0.0.51":
+  version "0.0.51"
+  resolved "https://registry.yarnpkg.com/@exobase/client-js/-/client-js-0.0.51.tgz#c3ac784b8980ca43d60ec2e82a4aec2820b5cdba"
+  integrity sha512-lWiDuEikRpYADuVY3CUB6jMLNj6+tEnvPzURzl0kE4UgxujKJ/QfjYPJmiYgRjV37odSuY8CdTOzUyueoWqzCA==
   dependencies:
     "@exobase/client-builder" "^0.0.2-alpha.2"
 
@@ -10058,6 +10058,11 @@ radash@^1.5.2:
   version "1.5.2"
   resolved "https://registry.yarnpkg.com/radash/-/radash-1.5.2.tgz#35029259b22e6f420f94402b1a1dc8dec2319d97"
   integrity sha512-3G5h7O51h3YhjjUKvVL2aaQx1LWQXxlp6CFhFEpfRaBoR4gfeLc7QV0kvfHHoOMooX2C7HBqc2CG7stPhZcs7A==
+
+radash@^1.6.0:
+  version "1.6.0"
+  resolved "https://registry.yarnpkg.com/radash/-/radash-1.6.0.tgz#ed0a829611cca1548318d2358e5502ee0791ee42"
+  integrity sha512-q6+93Dfeo1FfQ3oqYNhLgD7EanfZm2uGdiyLPI/Ugwf23pYZyDWKFk7qkY2a95HpaB7PWHozda8GvUAgZ9vxCw==
 
 raf@^3.4.1:
   version "3.4.1"
