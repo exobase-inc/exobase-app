@@ -11,6 +11,7 @@ import {
 import { Split } from '../layout'
 import * as t from '../../types'
 import { HiMinus, HiPlus } from 'react-icons/hi'
+import { useState } from 'react'
 
 
 type EnvVar = t.EnvironmentVariable & {
