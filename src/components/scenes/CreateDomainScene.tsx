@@ -1,6 +1,7 @@
+import _ from 'radash'
 import { useState } from 'react'
 import * as t from '../../types'
-import { useNavigate } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import Recoil from 'recoil'
 import { Split, Center } from '../layout'
 import {
@@ -14,9 +15,9 @@ import {
   Paragraph
 } from 'evergreen-ui'
 import { 
-  currentPlatformState, 
-  idTokenState, 
-  addDomainState 
+  idTokenState,
+  appState as appStateAtom,
+  workspaceState
 } from '../../state/app'
 import { useFetch, useFormation } from '../../hooks'
 import api from '../../api'
@@ -34,14 +35,30 @@ type State = {
 export default function CreateServiceScene() {
 
   const navigate = useNavigate()
+  const { platformId } = useParams() as { platformId: string}
   const idToken = Recoil.useRecoilValue(idTokenState)
-  const currentPlatform = Recoil.useRecoilValue(currentPlatformState)
-  const addDomainRequest = useFetch(api.domains.add)
-  const addDomainAction = Recoil.useSetRecoilState(addDomainState)
+  const workspace = Recoil.useRecoilValue(workspaceState)
+  const [appState, setAppState] = Recoil.useRecoilState(appStateAtom)
+  const addDomainRequest = useFetch(api.platforms.addDomain)
+  
   const [state, setState] = useState<State>({
     step: 'provider',
     provider: null
   })
+
+  if (!workspace) {
+    return (
+      <span>no workspace</span>
+    )
+  }
+
+  const platform = workspace.platforms.find(p => p.id === platformId)
+
+  if (!platform) {
+    return (
+      <span>no platform</span>
+    )
+  }
 
   const title = (() => {
     if (state.step === 'provider') return 'Where is your domain registered?'
@@ -54,9 +71,9 @@ export default function CreateServiceScene() {
 
   const submit = async ({ name }: GeneralData) => {
 
-    if (!currentPlatform) return
-
     const { error, data } = await addDomainRequest.fetch({
+      workspaceId: workspace.id,
+      platformId,
       domain: name,
       provider: state.provider!
     }, { token: idToken! })
@@ -66,13 +83,29 @@ export default function CreateServiceScene() {
       toaster.danger(error.details)
       return
     }
-    addDomainAction(data.domain)
-    navigate('/domains')
+    const providers = platform.providers as any
+    setAppState({
+      ...appState,
+      workspace: {
+        ...workspace,
+        platforms: _.replace(workspace.platforms, {
+          ...platform,
+          providers: {
+            ...platform.providers,
+            [state.provider! as any]: {
+              ...providers[state.provider!],
+              domains: [...providers[state.provider!].domains, data.domain]
+            }
+          }
+        }, (p) => p.id === platformId)
+      }
+    })
+    navigate(`/platform/${platformId}/domains`)
   }
 
 
   const cancel = () => {
-    navigate('/domains')
+    navigate(`/platform/${platformId}/domains`)
   }
 
   const setStep = (step: Step) => () => {
@@ -88,7 +121,7 @@ export default function CreateServiceScene() {
           <Pane width='100%'>
             <Heading flex={1} size={800}>{title}</Heading>
             <Paragraph>
-              Configure a domain in the <Strong>{currentPlatform?.name}</Strong> platform. This process will setup any required domain certificates and validation and allow Exobase to use it when deploying services. You must already own the domain in the selected cloud provider.
+              Configure a domain in the <Strong>{platform.name}</Strong> platform. This process will setup any required domain certificates and validation and allow Exobase to use it when deploying services. You must already own the domain in the selected cloud provider.
             </Paragraph>
           </Pane>
           {state.step === 'provider' && (
@@ -181,18 +214,6 @@ const CloudProviderForm = ({
         }, {
           label: 'GCP',
           key: 'gcp',
-          comingSoon: true
-        }, {
-          label: 'Vercel',
-          key: 'vercel',
-          comingSoon: true
-        }, {
-          label: 'Azure',
-          key: 'azure',
-          comingSoon: true
-        }, {
-          label: 'Heroku',
-          key: 'heroku',
           comingSoon: true
         }]}
         onSelect={onSelect}

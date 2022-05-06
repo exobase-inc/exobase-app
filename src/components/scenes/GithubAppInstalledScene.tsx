@@ -21,11 +21,10 @@ import { Logo } from '../ui'
 
 export default function GithubAppInstalledScene() {
 
-  const setInstallationIdRequest = useFetch(api.platforms.setGithubInstallationId)
+  const setInstallationIdRequest = useFetch(api.source.addInstallation)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-
     updateAppInstallationId()
   }, [])
 
@@ -45,15 +44,15 @@ export default function GithubAppInstalledScene() {
       setError('You may have been directed to this route by accident. No instillation id was provided.')
       return
     }
-    const response = await setInstallationIdRequest.fetch({
-      installationId
-    }, { token: token.idToken })
-    if (response.error) {
-      console.error(response.error)
-      toaster.danger(response.error.details)
-      setError('There was an error connecting the GitHub app you installed. Try to click the install app link again. If you get another error, contact us.')
-      return
-    }
+    // const response = await setInstallationIdRequest.fetch({
+    //   installationId
+    // }, { token: token.idToken })
+    // if (response.error) {
+    //   console.error(response.error)
+    //   toaster.danger(response.error.details)
+    //   setError('There was an error connecting the GitHub app you installed. Try to click the install app link again. If you get another error, contact us.')
+    //   return
+    // }
   }
 
   return (

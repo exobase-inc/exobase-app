@@ -18,14 +18,16 @@ import { useFetch } from '../../hooks'
 import api from '../../api'
 import {
   idTokenState,
-  currentPlatformState
+  workspaceState
 } from '../../state/app'
 import ServiceGrid from '../ui/ServiceGrid'
 import { SceneLayout, ServiceDetailSideSheet } from '../ui'
+import { useParams } from 'react-router-dom'
 
 
 export default function ServicesScene() {
 
+  const { platformId } = useParams() as { platformId: string }
   const navigate = useNavigate()
 
   // Local State
@@ -33,15 +35,22 @@ export default function ServicesScene() {
 
   // Global State
   const idToken = Recoil.useRecoilValue(idTokenState)
-  const [currentPlatform, setCurrentPlatform] = Recoil.useRecoilState(currentPlatformState)
-
+  const workspace = Recoil.useRecoilValue(workspaceState)
+  const platform = workspace?.platforms.find(p => p.id === platformId)
+  
   // API Requests
-  const getPlatformRequest = useFetch(api.platforms.getById)
-  const deployRequest = useFetch(api.services.deploy)
+  const deployRequest = useFetch(api.units.deployFromUI)
 
-  const deployService = async (service: t.Service) => {
+  if (!platform) {
+    return (<span>no platfrom</span>)
+  }
+
+
+  const deployService = async (service: t.Unit) => {
     const { error } = await deployRequest.fetch({
-      serviceId: service.id
+      workspaceId: workspace!.id,
+      platformId,
+      unitId: service.id,
     }, { token: idToken! })
     if (error) {
       console.error(error)
@@ -49,37 +58,21 @@ export default function ServicesScene() {
     }
   }
 
-  const getPlatform = async () => {
-    const { error, data } = await getPlatformRequest.fetch({
-      id: currentPlatform?.id!
-    }, { token: idToken! })
-    if (error) {
-      console.error(error)
-      toaster.danger(error.details)
-      return
-    }
-    setCurrentPlatform(data.platform)
-  }
-
-  useEffect(() => {
-    if (!currentPlatform?.id) return
-    getPlatform()
-  }, [currentPlatform?.id])
-
-  const services = _.sort(currentPlatform?.services ?? [], s => s.createdAt ?? 0)
+  const services = _.sort(platform.units.filter(u => u.type === 'user-service') ?? [], s => s.createdAt ?? 0)
   const currentService = services.find(s => s.id === selectedServiceId) ?? null
 
   const createService = () => {
-    navigate('/services/new')
+    navigate(`/platform/${platformId}/services/new`)
   }
 
-  const handleServiceSelection = (service: t.Service) => {
+  const handleServiceSelection = (service: t.Unit) => {
     setSelectedServiceId(service.id)
   }
 
   return (
     <SceneLayout subtitle='Services'>
       <ServiceDetailSideSheet
+        platform={platform}
         isShown={currentService !== null}
         service={currentService!}
         onClose={() => setSelectedServiceId(null)}

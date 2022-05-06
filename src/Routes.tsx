@@ -14,39 +14,20 @@ import CreateServiceScene from './components/scenes/CreateServiceScene'
 import LoginScene from './components/scenes/LoginScene'
 import ProviderScene from './components/scenes/ProviderScene'
 import DomainsScene from './components/scenes/DomainsScene'
-import PlatformScene from './components/scenes/PlatformScene'
+import DashboardScene from './components/scenes/DashboardScene'
 import CreateDomainScene from './components/scenes/CreateDomainScene'
 import GithubAppInstalledScene from './components/scenes/GithubAppInstalledScene'
 import DeploymentScene from './components/scenes/DeploymentScene'
-
-const GuardAuth = ({
-  children
-}: {
-  children: React.ReactNode
-}) => {
-  const navigate = useNavigate()
-  useEffect(() => {
-    const token = storage.token.get()
-    if (!token) {
-      navigate('/login')
-      return
-    }
-    if (token.exp < +Date.now()) {
-      storage.token.remove()
-      navigate('/login')
-      return
-    }
-  }, [])
-  return (<>{children}</>)
-}
+import AuthGuard from './guards/AuthGuard'
+import AdminPacksScene from './components/scenes/AdminPacksScene'
+import SignupScene from './components/scenes/SignupScene'
 
 const GuardState = ({
   children
 }: {
   children: React.ReactNode
 }) => {
-  const login = useFetch(api.auth.login)
-  const getPlatformRequest = useFetch(api.platforms.getById)
+  const refreshRequest = useFetch(api.auth.refresh)
   const setAppState = Recoil.useSetRecoilState(appState)
   const idToken = Recoil.useRecoilValue(idTokenState)
 
@@ -69,43 +50,30 @@ const GuardState = ({
     }
     // Check that the token you pulled hasn't expired
     if (token.exp < +Date.now()) {
-      storage.token.remove()
+      storage.token.clear()
       navigate('/login')
       return
     }
     // Fetch all the user data with the token
-    const loginResponse = await login.fetch({}, { token: token.didToken })
+    const refresh = await refreshRequest.fetch({}, { token: token.idToken })
 
-    if (loginResponse.error) {
-      console.error(loginResponse.error)
-      toaster.danger(loginResponse.error.details)
-      navigate('/login')
-      return
-    }
-
-    const platformResponse = await getPlatformRequest.fetch({
-      id: loginResponse.data.platformId
-    }, { token: loginResponse.data.idToken })
-
-    if (platformResponse.error) {
-      console.error(platformResponse.error)
-      toaster.danger(platformResponse.error.details)
+    if (refresh.error) {
+      console.error(refresh.error)
+      toaster.danger(refresh.error.details)
       navigate('/login')
       return
     }
 
     setAppState({
-      user: loginResponse.data.user,
-      idToken: loginResponse.data.idToken,
-      platforms: loginResponse.data.platforms,
-      currentPlatform: platformResponse.data.platform,
-      currentPlatformId: loginResponse.data.platformId
+      user: refresh.data.user,
+      idToken: refresh.data.idToken,
+      workspace: refresh.data.workspace,
+      platformId: refresh.data.workspace.platforms[0].id
     })
 
     storage.token.set({ 
-      didToken: token.didToken,
-      idToken: loginResponse.data.idToken,
-      exp: loginResponse.data.exp, 
+      idToken: refresh.data.idToken,
+      exp: refresh.data.exp, 
       email: token.email
     })
   }
@@ -113,7 +81,7 @@ const GuardState = ({
   useEffect(() => {
     tryHydrateState()
   }, [])
-  if (!idToken || login.loading) return (
+  if (!idToken || refreshRequest.loading) return (
     <span>loading...</span>
   )
   return (<>{children}</>)
@@ -123,60 +91,68 @@ export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="services" />} />
-        <Route path="/platform" element={(
-          <GuardAuth>
+        <Route path="/" element={<Navigate to="dashboard" />} />
+        <Route path="/dashboard" element={(
+          <AuthGuard>
             <GuardState>
-              <PlatformScene />
+              <DashboardScene />
             </GuardState>
-          </GuardAuth>
+          </AuthGuard>
         )} />
-        <Route path="/services" element={(
-          <GuardAuth>
+        <Route path="/platform/:platformId/services" element={(
+          <AuthGuard>
             <GuardState>
               <ServicesScene />
             </GuardState>
-          </GuardAuth>
+          </AuthGuard>
         )} />
-        <Route path="/services/new" element={(
-          <GuardAuth>
+        <Route path="/platform/:platformId/services/new" element={(
+          <AuthGuard>
             <GuardState>
               <CreateServiceScene />
             </GuardState>
-          </GuardAuth>
+          </AuthGuard>
         )} />
-        <Route path="/providers" element={(
-          <GuardAuth>
+        <Route path="/platform/:platformId/providers" element={(
+          <AuthGuard>
             <GuardState>
               <ProviderScene />
             </GuardState>
-          </GuardAuth>
+          </AuthGuard>
         )} />
-        <Route path="/domains" element={(
-          <GuardAuth>
+        <Route path="/platform/:platformId/domains" element={(
+          <AuthGuard>
             <GuardState>
               <DomainsScene />
             </GuardState>
-          </GuardAuth>
+          </AuthGuard>
         )} />
-        <Route path="/domains/new" element={(
-          <GuardAuth>
+        <Route path="/platform/:platformId/domains/new" element={(
+          <AuthGuard>
             <GuardState>
               <CreateDomainScene />
             </GuardState>
-          </GuardAuth>
+          </AuthGuard>
         )} />
-        <Route path="/deployments/:id" element={(
-          <GuardAuth>
+        <Route path="/platform/:platformId/services/:unitId/deployments/:deploymentId" element={(
+          <AuthGuard>
             <GuardState>
               <DeploymentScene />
             </GuardState>
-          </GuardAuth>
+          </AuthGuard>
+        )} />
+        <Route path="/packs" element={(
+          <AuthGuard>
+            <GuardState>
+              <AdminPacksScene />
+            </GuardState>
+          </AuthGuard>
         )} />
         <Route path="/github-app-installed" element={(
           <GithubAppInstalledScene />
         )} />
         <Route path="/login" element={<LoginScene />} />
+        <Route path="/signup" element={<SignupScene />} />
       </Routes>
     </BrowserRouter>
   )

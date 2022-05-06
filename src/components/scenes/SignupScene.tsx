@@ -1,5 +1,5 @@
 import Recoil from 'recoil'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { Center, Split } from '../layout'
 import { Magic } from 'magic-sdk'
@@ -20,13 +20,13 @@ import {
 } from 'evergreen-ui'
 
 
-export default function LoginScene() {
+export default function SignupScene() {
 
   const navigate = useNavigate()
   const setAppState = Recoil.useSetRecoilState(appState)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const loginRequest = useFetch(api.auth.login)
+  const signupRequest = useFetch(api.auth.signup)
 
   useEffect(() => {
     const knownUser = storage.latestUser.get()
@@ -36,16 +36,16 @@ export default function LoginScene() {
 
   const login = async () => {
 
-    const loginResponse = await loginRequest.fetch({
+    const signupResponse = await signupRequest.fetch({
       email, password
     })
-    if (loginResponse.error) {
-      console.error(loginResponse.error)
-      toaster.danger(loginResponse.error.details)
+    if (signupResponse.error) {
+      console.error(signupResponse.error)
+      toaster.danger(signupResponse.error.details)
       return
     }
 
-    const { user, exp, idToken, workspace } = loginResponse.data
+    const { user, exp, idToken, workspace } = signupResponse.data
 
     setAppState({
       user,
@@ -77,11 +77,11 @@ export default function LoginScene() {
         <Center marginBottom={majorScale(4)}>
           <Logo width={100} />
         </Center>
-        <Heading size={800}>Login</Heading>
+        <Heading size={800}>Signup</Heading>
         <Paragraph
           maxWidth={300}
         >
-          Login or create a new account by providing your email so we can verify you.
+          This will be better, trust us.
         </Paragraph>
         <Split marginY={majorScale(2)}>
           <TextInput
@@ -94,25 +94,24 @@ export default function LoginScene() {
         <Split marginY={majorScale(2)}>
           <TextInput
             flex={1}
+            type="password"
             placeholder='***********'
             onChange={(e: any) => setPassword(e.target.value)}
             value={password}
           />
         </Split>
         <div className="flex flex-row items-center justify-between">
-          <Link to="/signup">
-            <button className="bg-slate-50 hover:bg-slate-100 rounded p-1">
-              Signup
-            </button>
-          </Link>
+          <button className="bg-slate-50 hover:bg-slate-100 rounded p-1">
+            Signup
+          </button>
           <Button
             width="100%"
             onClick={login}
-            disabled={loginRequest.loading}
-            isLoading={loginRequest.loading}
+            disabled={signupRequest.loading}
+            isLoading={signupRequest.loading}
             appearance='primary'
           >
-            Login
+            Signup
           </Button>
         </div>
       </Pane>

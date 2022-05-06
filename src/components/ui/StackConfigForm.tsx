@@ -9,24 +9,21 @@ import {
   EnvironmentVariableForm,
   CloseablePane
 } from '../ui'
-import StackForm from '../stacks/Form'
 
 
 export default function StackConfigForm({
   value,
   platformName,
   serviceName,
-  stack,
   onStackConfigChange,
   onEnvVarChange
 }: {
-  value: t.ServiceConfig
+  value: any
   platformName: string
   serviceName: string
-  stack: t.StackKey
   onStackConfigChange?: (update: {
     isValid: boolean
-    config: t.AnyStackConfig
+    config: any
   }) => void
   onEnvVarChange?: (envvars: t.EnvironmentVariable[]) => void
 }) {
@@ -82,11 +79,10 @@ export default function StackConfigForm({
         label='Advanced Configuration'
         marginTop={majorScale(3)}
       >
-        <StackForm
-          stack={stack}
+        {/* <StackForm
           value={value.stack}
           onChange={onStackConfigChange}
-        />
+        /> */}
       </CloseablePane>
     </Pane>
   )

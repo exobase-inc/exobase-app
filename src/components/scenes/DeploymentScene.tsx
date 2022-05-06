@@ -19,7 +19,7 @@ import { useFetch } from '../../hooks'
 import api from '../../api'
 import {
   idTokenState,
-  currentPlatformState
+  workspaceState
 } from '../../state/app'
 import ServiceGrid from '../ui/ServiceGrid'
 import { SceneLayout, ServiceDetailSideSheet } from '../ui'
@@ -27,17 +27,19 @@ import { SceneLayout, ServiceDetailSideSheet } from '../ui'
 
 export default function DeploymentScene() {
 
-  const { id: deploymentId } = useParams() as { id: string }
+  const { platformId, unitId, deploymentId } = useParams() as { platformId: string; deploymentId: string; unitId: string }
 
-  // Global State
   const idToken = Recoil.useRecoilValue(idTokenState)
-  const currentPlatform = Recoil.useRecoilValue(currentPlatformState)
-  // API Requests
-  const getLogStreamRequest = useFetch(api.deployments.getLogStream)
+  const workspace = Recoil.useRecoilValue(workspaceState)
+  const pullLogsRequest = useFetch(api.logs.pull)
+  const platform = workspace?.platforms.find(p => p.id === platformId) ?? null
+  const unit = platform?.units.find(u => u.id === unitId) ?? null
+  const deployment = unit?.deployments.find(d => d.id === deploymentId) ?? null
 
   const getLogStream = async () => {
-    const { error } = await getLogStreamRequest.fetch({
-      deploymentId
+    if (!deployment) return
+    const { error } = await pullLogsRequest.fetch({
+      logId: deployment.logId
     }, { token: idToken! })
     if (error) {
       console.error(error)
@@ -46,10 +48,15 @@ export default function DeploymentScene() {
   }
 
   useEffect(() => {
-    if (!currentPlatform?.id) return
-    if (!deploymentId) return
+    if (!deployment) return
     getLogStream()
-  }, [currentPlatform?.id])
+  }, [deployment])
+
+  if (!workspace) {
+    return (
+      <span>no workspace</span>
+    )
+  }
 
   // useEffect(() => {
   //   const iid = setInterval(() => {
@@ -71,7 +78,7 @@ export default function DeploymentScene() {
   //   setSelectedServiceId(service.id)
   // }
 
-  const chunks = _.sort(getLogStreamRequest.data?.logStream.chunks ?? [], c => c.timestamp)
+  const chunks = _.sort(pullLogsRequest.data?.stream ?? [], c => c.timestamp)
 
   return (
     <SceneLayout subtitle='Services'>

@@ -1,11 +1,10 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect } from 'react'
-import { useRecoilValue, useSetRecoilState } from 'recoil'
+import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 import {
-  currentPlatformState,
   idTokenState,
-  updateServiceAction,
-  removeServiceAction
+  appState as appStateAtom,
+  workspaceState
 } from '../../state/app'
 import _ from 'radash'
 import * as t from '../../types'
@@ -53,7 +52,7 @@ import {
   Shimmer
 } from '../ui'
 import theme from '../../styles'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 
 type TabName = 'deployments'
@@ -62,17 +61,18 @@ type TabName = 'deployments'
   | 'functions'
 
 export default function ServiceDetailSideSheet({
+  platform,
   isShown = false,
   service,
   onClose
 }: {
-  service: t.Service | null
+  platform: t.Platform
+  service: t.Unit | null
   isShown?: boolean
   onClose?: () => void
 }) {
 
   const idToken = useRecoilValue(idTokenState)
-  const platform = useRecoilValue(currentPlatformState)
 
   const [tab, setTab] = useState<TabName>('deployments')
   return (
@@ -108,49 +108,74 @@ const SideSheetBody = ({
   onTabChange
 }: {
   tab: TabName
-  service: t.Service
+  service: t.Unit
   platform: t.Platform
   idToken: string
   onTabChange?: (tab: TabName) => void
 }) => {
   const [showDestroyDialog, setShowDestroyDialog] = useState(false)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
-  const updateServiceState = useSetRecoilState(updateServiceAction)
-  const removeServiceState = useSetRecoilState(removeServiceAction)
-  const destroyServiceRequest = useFetch(api.services.destroy)
-  const removeServiceRequest = useFetch(api.services.remove)
+  const [appState, setAppState] = useRecoilState(appStateAtom)
+  const workspace = useRecoilValue(workspaceState)
+  // const updateServiceState = useSetRecoilState(updateServiceAction)
+  // const removeServiceState = useSetRecoilState(removeServiceAction)
+  const destroyServiceRequest = useFetch(api.units.destroy)
+  const removeServiceRequest = useFetch(api.units.remove)
 
   const destroy = async () => {
     const { error, data } = await destroyServiceRequest.fetch({
-      serviceId: service.id
+      workspaceId: platform.workspaceId,
+      platformId: platform.id,
+      unitId: service.id
     }, { token: idToken })
     if (error) {
       console.error(error)
       toaster.danger(error.details)
       return
     }
-    updateServiceState({
-      ...service,
-      latestDeployment: data.deployment,
-      latestDeploymentId: data.deployment.id,
-      deployments: [...service.deployments, data.deployment]
+    setAppState({
+      ...appState,
+      workspace: {
+        ...workspace!,
+        platforms: _.replace(workspace!.platforms, {
+          ...platform,
+          units: _.replace(platform.units, {
+            ...service,
+            deployments: [...service.deployments, data.deployment]
+          }, u =>  u.id === service.id)
+        }, p => p.id === platform.id)
+      }
     })
     setShowDestroyDialog(false)
   }
   const remove = async () => {
-    const { error } = await removeServiceRequest.fetch({
-      serviceId: service.id
+    const { error, data } = await removeServiceRequest.fetch({
+      workspaceId: platform.workspaceId,
+      platformId: platform.id,
+      unitId: service.id
     }, { token: idToken })
     if (error) {
       console.error(error)
       toaster.danger(error.details)
       return
     }
-    removeServiceState(service)
-    setShowRemoveDialog(false)
+    setAppState({
+      ...appState,
+      workspace: {
+        ...workspace!,
+        platforms: _.replace(workspace!.platforms, {
+          ...platform,
+          units: _.replace(platform.units, {
+            ...service,
+            deleted: true
+          }, u =>  u.id === service.id)
+        }, p => p.id === platform.id)
+      }
+    })
+    setShowDestroyDialog(false)
   }
   const url = (() => {
-    const u = service.activeDeployment?.attributes?.url
+    const u = service.activeDeployment?.output?.url
     if (!u) return null
     if (u.startsWith('http')) return u
     return `https://${u}`
@@ -171,16 +196,16 @@ const SideSheetBody = ({
           </Split>
           <Split alignItems='center'>
             <Paragraph flex={1} size={400} color="muted">
-              A {service.language} {service.type} on {service.provider} {service.service}
+              A {service.pack.language} {service.pack.type} on {service.pack.provider} {service.pack.service}
             </Paragraph>
-            {service.latestDeployment?.attributes?.version && (
-              <Text>v{service.latestDeployment?.attributes.version}</Text>
+            {service.latestDeployment?.output?.version && (
+              <Text>v{service.latestDeployment?.output.version}</Text>
             )}
           </Split>
           <Split alignItems='center'>
             <Pane flex={1}>
               {service.tags.map(tag => (
-                <Badge marginRight={majorScale(1)} key={tag}>{tag}</Badge>
+                <Badge marginRight={majorScale(1)} key={tag.name}>{tag.name}={tag.value}</Badge>
               ))}
             </Pane>
           </Split>
@@ -254,9 +279,10 @@ const SideSheetBody = ({
           />
         )}
         {tab === 'functions' && (
-          <FunctionsCard
-            service={service}
-          />
+          // <FunctionsCard
+          //   service={service}
+          // />
+          <div>coming soon</div>
         )}
         {tab === 'configuration' && (
           <ConfigurationCard
@@ -317,17 +343,20 @@ const SourceCard = ({
   platform
 }: {
   platform: t.Platform
-  service: t.Service
+  service: t.Unit
 }) => {
   const source = service.source
   const [state, setState] = useState<'review' | 'edit'>('review')
   const idToken = useRecoilValue(idTokenState) as string
-  const updateService = useSetRecoilState(updateServiceAction)
-  const updateServiceRequest = useFetch(api.services.update)
+  const workspace = useRecoilValue(workspaceState)
+  const [appState, setAppState] = useRecoilState(appStateAtom)
+  const updateServiceRequest = useFetch(api.units.update)
 
   const updateSource = async (newSource: t.ServiceSource) => {
     const { error } = await updateServiceRequest.fetch({
-      id: service.id,
+      workspaceId: platform.workspaceId,
+      platformId: platform.id,
+      unitId: service.id,
       source: newSource
     }, { token: idToken })
     if (error) {
@@ -336,9 +365,18 @@ const SourceCard = ({
       return
     }
     setState('review')
-    updateService({
-      ...service,
-      source: newSource
+    setAppState({
+      ...appState,
+      workspace: {
+        ...workspace!,
+        platforms: _.replace(workspace!.platforms, {
+          ...platform,
+          units: _.replace(platform.units, {
+            ...service,
+            source: newSource
+          }, u =>  u.id === service.id)
+        }, p => p.id === platform.id)
+      }
     })
   }
 
@@ -370,9 +408,9 @@ const SourceCard = ({
         <SelectList
           items={[{
             id: 'selected',
-            label: `${source.owner}/${source.repo}`,
-            subtitle: source.branch,
-            link: `https://github.com/${source.owner}/${source.repo}`,
+            label: `${source?.owner}/${source?.repo}`,
+            subtitle: source?.branch,
+            link: `https://github.com/${source?.owner}/${source?.repo}`,
             selectable: false
           }]}
         />
@@ -391,77 +429,79 @@ const SourceCard = ({
   )
 }
 
-const FunctionsCard = ({
-  service
-}: {
-  service: t.Service
-}) => {
+// const FunctionsCard = ({
+//   service
+// }: {
+//   service: t.Unit
+// }) => {
 
-  const hasBeenDeployed = !!service.activeDeployment
-  const functions = service.activeDeployment?.attributes?.functions ?? []
-  const modules = _.unique(functions.map(f => f.module))
-  const capitalize = (str: string | null) => {
-    if (!str) return ''
-    return `${str[0].toUpperCase()}${str.slice(1)}`
-  }
+//   const hasBeenDeployed = !!service.activeDeployment
+//   const functions = service.activeDeployment?.attributes?.functions ?? []
+//   const modules = _.unique(functions.map(f => f.module))
+//   const capitalize = (str: string | null) => {
+//     if (!str) return ''
+//     return `${str[0].toUpperCase()}${str.slice(1)}`
+//   }
 
-  return (
-    <Pane>
-      <Split marginBottom={majorScale(2)}>
-        <Heading flex={1}>Functions</Heading>
-      </Split>
-      {!hasBeenDeployed && (
-        <Alert
-          intent="none"
-          title="No deployments"
-          marginBottom={32}
-        >
-          This service has not been deployed yet.
-        </Alert>
-      )}
-      {hasBeenDeployed && modules.map(mod => (
-        <Card
-          key={mod}
-          backgroundColor="white"
-          elevation={0}
-          marginBottom={majorScale(2)}
-        >
-          <Pane
-            padding={majorScale(2)}
-          >
-            <Heading size={600}>{capitalize(mod)}</Heading>
-            {functions.filter(f => f.module === mod).map(func => (
-              <CloseablePane
-                key={func.function ?? ''}
-                label={capitalize(func.function)}
-              >
-                <Alert
-                  intent="warning"
-                  title="Function details coming soon"
-                  marginBottom={32}
-                >
-                  Argument and response types, quick links, and a test form to execute requests.
-                </Alert>
-              </CloseablePane>
-            ))}
-          </Pane>
-        </Card>
-      ))}
-    </Pane>
-  )
-}
+//   return (
+//     <Pane>
+//       <Split marginBottom={majorScale(2)}>
+//         <Heading flex={1}>Functions</Heading>
+//       </Split>
+//       {!hasBeenDeployed && (
+//         <Alert
+//           intent="none"
+//           title="No deployments"
+//           marginBottom={32}
+//         >
+//           This service has not been deployed yet.
+//         </Alert>
+//       )}
+//       {hasBeenDeployed && modules.map(mod => (
+//         <Card
+//           key={mod}
+//           backgroundColor="white"
+//           elevation={0}
+//           marginBottom={majorScale(2)}
+//         >
+//           <Pane
+//             padding={majorScale(2)}
+//           >
+//             <Heading size={600}>{capitalize(mod)}</Heading>
+//             {functions.filter(f => f.module === mod).map(func => (
+//               <CloseablePane
+//                 key={func.function ?? ''}
+//                 label={capitalize(func.function)}
+//               >
+//                 <Alert
+//                   intent="warning"
+//                   title="Function details coming soon"
+//                   marginBottom={32}
+//                 >
+//                   Argument and response types, quick links, and a test form to execute requests.
+//                 </Alert>
+//               </CloseablePane>
+//             ))}
+//           </Pane>
+//         </Card>
+//       ))}
+//     </Pane>
+//   )
+// }
 
 const DeploymentsCard = ({
   service
 }: {
-  service: t.Service
+  service: t.Unit
 }) => {
 
   const navigate = useNavigate()
+  const workspace = useRecoilValue(workspaceState)
+  const [appState, setAppState] = useRecoilState(appStateAtom)
   const idToken = useRecoilValue(idTokenState) as string
-  const updateService = useSetRecoilState(updateServiceAction)
-  const deployServiceRequest = useFetch(api.services.deploy)
-  const listDeploymentsRequest = useFetch(api.deployments.listForService)
+  const deployServiceRequest = useFetch(api.units.deployFromUI)
+  const findPlatformRequest = useFetch(api.platforms.find)
+  const platform = workspace?.platforms.find(p => p.id === service.platformId) ?? null
 
   useEffect(() => {
     if (!service) return
@@ -469,39 +509,50 @@ const DeploymentsCard = ({
   }, [service?.id])
 
   const listDeployments = async () => {
-    const { error, data } = await listDeploymentsRequest.fetch({
-      serviceId: service?.id!
+    if (!workspace) return
+    const { error, data } = await findPlatformRequest.fetch({
+      workspaceId: service.workspaceId,
+      platformId: service.platformId
     }, { token: idToken! })
     if (error) {
       console.error(error)
       toaster.danger(error.details)
       return
     }
-    const latest = _.boil(data.deployments ?? [], (a, b) => {
-      return a.startedAt > b.startedAt ? a : b
-    })
-    updateService({
-      ...service,
-      latestDeployment: latest,
-      latestDeploymentId: latest?.id,
-      deployments: data.deployments
+    setAppState({
+      ...appState,
+      workspace: {
+        ...workspace,
+        platforms: _.replace(workspace.platforms ?? [], data.platform, p => p.id === service.platformId)
+      }
     })
   }
 
   const deploy = async () => {
+    if (!platform) return
+    if (!workspace) return
     const { error, data } = await deployServiceRequest.fetch({
-      serviceId: service.id
+      workspaceId: service.workspaceId,
+      platformId: service.platformId,
+      unitId: service.id
     }, { token: idToken })
     if (error) {
       console.error(error)
       toaster.danger(error.details)
       return
     }
-    updateService({
-      ...service,
-      latestDeployment: data.deployment,
-      latestDeploymentId: data.deployment.id,
-      deployments: [...service.deployments, data.deployment]
+    setAppState({
+      ...appState,
+      workspace: {
+        ...workspace!,
+        platforms: _.replace(workspace!.platforms, {
+          ...platform,
+          units: _.replace(platform.units, {
+            ...service,
+            deployments: [...service.deployments, data.deploy]
+          }, u =>  u.id === service.id)
+        }, p => p.id === platform.id)
+      }
     })
   }
 
@@ -510,7 +561,7 @@ const DeploymentsCard = ({
   }
 
   const deployments = _.sort(service.deployments ?? [], d => d.startedAt ?? 0, true)
-  const hasBeenDeployed = !!service.latestDeploymentId
+  const hasBeenDeployed = !!service.latestDeployment
   return (
     <Pane>
       <Split marginBottom={majorScale(2)} alignItems='center'>
@@ -520,7 +571,7 @@ const DeploymentsCard = ({
           appearance='minimal'
           onClick={listDeployments}
           icon={<HiRefresh />}
-          disabled={listDeploymentsRequest.loading}
+          disabled={findPlatformRequest.loading}
         />
         <Button
           appearance='primary'
@@ -541,7 +592,7 @@ const DeploymentsCard = ({
           This service has not been deployed yet.
         </Alert>
       )}
-      {listDeploymentsRequest.loading && (
+      {findPlatformRequest.loading && (
         <>
           <Shimmer
             backgroundColor="white"
@@ -562,7 +613,7 @@ const DeploymentsCard = ({
           />
         </>
       )}
-      {!listDeploymentsRequest.loading && deployments.map(deployment => (
+      {!findPlatformRequest.loading && deployments.map(deployment => (
         <Card
           key={deployment.id}
           backgroundColor="white"
@@ -590,7 +641,7 @@ const DeploymentCard = ({
   onViewLogs
 }: {
   deployment: t.Deployment
-  service: t.Service
+  service: t.Unit
   onViewLogs?: () => void
 }) => {
   const deployStarted = formatDistanceToNowStrict(
@@ -603,12 +654,15 @@ const DeploymentCard = ({
     { addSuffix: false }
   )
   const triggeredBy = (() => {
-    const { type: triggerType, user, source } = deployment.trigger ?? {}
-    if (triggerType === 'source') {
-      return `push:${source?.owner}/${source?.repo}/${source?.branch}`
+    const { type: triggerType, user, git } = deployment.trigger ?? {}
+    if (triggerType === 'github-push') {
+      return `push:${git?.owner}/${git?.repo}/${git?.branch}`
     }
-    if (triggerType === 'user') {
-      return `user:${user?.username}`
+    if (triggerType === 'user-cli') {
+      return `user:cli:${user?.username}`
+    }
+    if (triggerType === 'user-ui') {
+      return `user:ui:${user?.username}`
     }
     return ''
   })()
@@ -641,17 +695,20 @@ const ConfigurationCard = ({
   service,
   platform
 }: {
-  service: t.Service
+  service: t.Unit
   platform: t.Platform
 }) => {
   const [config, setConfig] = useState(service.config)
   const idToken = useRecoilValue(idTokenState) as string
-  const updateService = useSetRecoilState(updateServiceAction)
-  const updateServiceRequest = useFetch(api.services.updateConfig)
+  const workspace = useRecoilValue(workspaceState)
+  const [appState, setAppState] = useRecoilState(appStateAtom)
+  const updateServiceRequest = useFetch(api.units.update)
 
   const updateConfig = async () => {
-    const { error } = await updateServiceRequest.fetch({
-      serviceId: service.id,
+    const { error, data } = await updateServiceRequest.fetch({
+      workspaceId: service.workspaceId,
+      platformId: service.platformId,
+      unitId: service.id,
       config
     }, { token: idToken })
     if (error) {
@@ -660,9 +717,15 @@ const ConfigurationCard = ({
       return
     }
     toaster.success('Service updated')
-    updateService({
-      ...service,
-      config
+    setAppState({
+      ...appState,
+      workspace: {
+        ...workspace!,
+        platforms: _.replace(workspace!.platforms, {
+          ...platform,
+          units: _.replace(platform.units, data.unit, u =>  u.id === service.id)
+        }, p => p.id === platform.id)
+      }
     })
   }
   return (
@@ -682,7 +745,6 @@ const ConfigurationCard = ({
         value={config}
         platformName={platform.name}
         serviceName={service.name}
-        stack={config.type}
         onStackConfigChange={({ config: newStackConfig }) => {
           setConfig({ ...config, stack: newStackConfig })
         }}

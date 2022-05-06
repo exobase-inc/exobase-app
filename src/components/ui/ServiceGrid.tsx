@@ -24,9 +24,9 @@ export default function ServiceGrid({
   onSelect
 }: {
   loading?: boolean
-  services: t.Service[]
-  onDeploy?: (service: t.Service) => void
-  onSelect?: (service: t.Service) => void
+  services: t.Unit[]
+  onDeploy?: (service: t.Unit) => void
+  onSelect?: (service: t.Unit) => void
 }) {
   return (
     <Pane
@@ -75,7 +75,7 @@ const ServiceGridItem = ({
   onSelect,
   onDeploy
 }: {
-  service: t.Service
+  service: t.Unit
   onSelect?: () => void
   onDeploy?: () => void
 }) => {
@@ -88,7 +88,7 @@ const ServiceGridItem = ({
     : null
 
   const getVersion = (): string => {
-    const version = deployment?.attributes?.version
+    const version = deployment?.output?.version
     return version ? `v${version}` : ''
   }
 
@@ -105,9 +105,9 @@ const ServiceGridItem = ({
         <Pane flex={1} marginRight={majorScale(2)}>
           <Heading size={700}>{service.name}</Heading>
           <Pane>
-            <Badge marginRight={majorScale(1)}>{service.type}</Badge>
-            <Badge marginRight={majorScale(1)}>{service.provider}</Badge>
-            <Badge>{service.service}</Badge>
+            <Badge marginRight={majorScale(1)}>{service.pack.type}</Badge>
+            <Badge marginRight={majorScale(1)}>{service.pack.provider}</Badge>
+            <Badge>{service.pack.service}</Badge>
           </Pane>
         </Pane>
         <IconButton
@@ -132,7 +132,7 @@ const ServiceGridItem = ({
         <>
           <Split marginBottom={majorScale(1)}>
             <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Link:</Heading>
-            <Text>{deployment?.attributes?.url ?? 'none'}</Text>
+            <Text>{deployment?.output?.url ?? 'none'}</Text>
           </Split>
           <Split marginBottom={majorScale(1)}>
             <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Deployed:</Heading>

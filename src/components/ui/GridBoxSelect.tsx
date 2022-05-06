@@ -41,7 +41,7 @@ export default function GridBoxSelect<TKey = string>({
   onSelect,
   ...rest
 }: {
-  selected?: TKey
+  selected?: TKey | null
   choices: {
     label: string
     key: TKey

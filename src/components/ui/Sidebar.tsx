@@ -5,9 +5,10 @@ import {
   HiGlobeAlt,
   HiCloud,
   HiUsers,
-  HiViewGrid
+  HiViewGrid,
+  HiOutlineCubeTransparent,
+  HiChevronDown
 } from 'react-icons/hi'
-import theme from '../../styles'
 import styled from 'styled-components'
 import type { IconType } from 'react-icons'
 import {
@@ -16,6 +17,8 @@ import {
   Text
 } from 'evergreen-ui'
 import Logo from './Logo'
+import { useRecoilValue } from 'recoil'
+import { appState, platformState, userState } from '../../state/app'
 
 export default function Sidebar({
   currentPath
@@ -23,73 +26,95 @@ export default function Sidebar({
   currentPath?: string
 }) {
 
+  const { user, workspace } = useRecoilValue(appState)
+  const platform = useRecoilValue(platformState)
+  if (!user) return null
+
   return (
-    <Stack
-      padding={majorScale(4)}
-      paddingRight={majorScale(10)}
-    >
-      <Split
-        alignItems='flex-end'
-        marginBottom={majorScale(5)}
-      >
+    <div className="flex flex-col h-screen">
+      <div className="flex items-end mb-5 p-6 pr-10">
         <Logo width={35} />
-        <Heading
-          marginLeft={majorScale(2)}
-          size={600}
-          fontWeight={700}
-        >
+        <h4 className="ml-2 text-2xl font-bold">
           Exobase
-        </Heading>
-      </Split>
-      <SidebarItem
-        label='Dashboard'
-        isActive={currentPath === '/platform'}
-        icon={HiViewGrid}
-        route='/platform'
-      />
-      <Text
-        marginTop={majorScale(2)}
-        marginBottom={majorScale(1)}
-        size={300}
-        fontWeight={600}
-        color={theme.colors.grey300}
-      >
-        Platform
-      </Text>
-      <SidebarItem
-        label='Services'
-        isActive={currentPath === '/services'}
-        icon={HiCube}
-        route='/services'
-      />
-      <SidebarItem
-        label='Domains'
-        isActive={currentPath === '/domains'}
-        icon={HiGlobeAlt}
-        route='/domains'
-      />
-      <SidebarItem
-        label='Clouds'
-        isActive={currentPath === '/providers'}
-        icon={HiCloud}
-        route='/providers'
-      />
-      <Text
-        marginTop={majorScale(2)}
-        marginBottom={majorScale(1)}
-        size={300}
-        fontWeight={600}
-        color={theme.colors.grey300}
-      >
-        Management
-      </Text>
-      <SidebarItem
-        label='Users'
-        isActive={currentPath === '/users'}
-        icon={HiUsers}
-        route='/users'
-      />
-    </Stack>
+        </h4>
+      </div>
+      <div className="grow p-6 pr-10">
+        <SidebarItem
+          label='Dashboard'
+          isActive={currentPath === '/dashboard'}
+          icon={HiViewGrid}
+          route='/dashboard'
+        />
+        <Text
+          marginTop={majorScale(2)}
+          marginBottom={majorScale(1)}
+          size={300}
+          fontWeight={600}
+          className="text-slate-400 uppercase"
+        >
+          Platform
+        </Text>
+        <SidebarItem
+          label='Services'
+          isActive={currentPath === `/platform/${platform?.id}/services`}
+          icon={HiCube}
+          route={`/platform/${platform?.id}/services`}
+        />
+        <SidebarItem
+          label='Domains'
+          isActive={currentPath === `/platform/${platform?.id}/domains`}
+          icon={HiGlobeAlt}
+          route={`/platform/${platform?.id}/domains`}
+        />
+        <SidebarItem
+          label='Clouds'
+          isActive={currentPath === `/platform/${platform?.id}/providers`}
+          icon={HiCloud}
+          route={`/platform/${platform?.id}/providers`}
+        />
+        <Text
+          marginTop={majorScale(2)}
+          marginBottom={majorScale(1)}
+          size={300}
+          fontWeight={600}
+          className="text-slate-400 uppercase"
+        >
+          Management
+        </Text>
+        <SidebarItem
+          label='Users'
+          isActive={currentPath === '/users'}
+          icon={HiUsers}
+          route='/users'
+        />
+        {user.role === 'admin' && (
+          <>
+            <Text
+              marginTop={majorScale(2)}
+              marginBottom={majorScale(1)}
+              size={300}
+              fontWeight={600}
+              className="text-slate-400 uppercase"
+            >
+              Admin
+            </Text>
+            <SidebarItem
+              label='Packs'
+              isActive={currentPath === '/packs'}
+              icon={HiOutlineCubeTransparent}
+              route='/packs'
+            />
+          </>
+        )}
+      </div>
+      <div className="border-slate-200 border-t border-solid flex flex-row p-6">
+        <img src={user.thumbnailUrl} className="rounded-xl mr-4 object-cover h-5 w-5 bg-slate-200" />
+        <span className="inline-block grow">{workspace?.name}</span>
+        <button className="">
+          <HiChevronDown className="" />
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -113,16 +138,17 @@ const SidebarItem = ({
       <Split
         alignItems='center'
         marginBottom={majorScale(3)}
+        className="group"
       >
         <Icon
           size={20}
-          color={active ? theme.colors.accent : theme.colors.black}
+          className="group-hover:text-blue-700 text-black"
         />
         <Text
           size={500}
           marginLeft={majorScale(2)}
           fontWeight={600}
-          color={active ? theme.colors.accent : theme.colors.black}
+          className="group-hover:text-blue-700 text-black"
         >
           {label}
         </Text>

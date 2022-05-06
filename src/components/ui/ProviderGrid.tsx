@@ -3,7 +3,7 @@ import { useState } from 'react'
 import * as t from '../../types'
 import { useCurrentWidth } from 'react-socks'
 import Recoil from 'recoil'
-import { currentPlatformState, idTokenState } from '../../state/app'
+import { workspaceState, idTokenState } from '../../state/app'
 import { PROVIDER_LOGOS } from '../../const'
 import { Center, Stack } from '../layout'
 import api from '../../api'
@@ -17,13 +17,17 @@ import {
   TextInputField,
   toaster
 } from 'evergreen-ui'
+import { useParams } from 'react-router-dom'
 
 
 export default function ProviderGrid() {
-  const platform = Recoil.useRecoilValue(currentPlatformState)
+  const { platformId } = useParams() as { platformId: string }
+  const workspace = Recoil.useRecoilValue(workspaceState)
+  const platform = workspace?.platforms.find(p => p.id === platformId) ?? null
   const idToken = Recoil.useRecoilValue(idTokenState)
   const width = useCurrentWidth()
   const columns = Math.round(width / 350)
+  if (!platform || !idToken || !workspace) return null
   return (
     <Pane
       flex={1}
@@ -37,20 +41,10 @@ export default function ProviderGrid() {
       <ProviderGridItem
         provider="aws"
       >
-        <AWSConfigForm platform={platform} idToken={idToken} />
-      </ProviderGridItem>
-      <ProviderGridItem
-        provider="vercel"
-        comingSoon
-      >
-        <VercelAuthForm platform={platform} idToken={idToken} />
+        <AWSConfigForm platform={platform} idToken={idToken} workspaceId={workspace.id} />
       </ProviderGridItem>
       <ProviderGridItem
         provider="gcp"
-        comingSoon
-      />
-      <ProviderGridItem
-        provider="azure"
         comingSoon
       />
     </Pane>
@@ -93,81 +87,34 @@ const ProviderGridItem = ({
   )
 }
 
-const VercelAuthForm = ({
-  platform,
-  idToken
-}: {
-  platform: t.Platform | null
-  idToken: string | null
-}) => {
-  const isConfigured = platform?.providers?.vercel?.configured ?? false
-  const [token, setToken] = useState<string | null>(null)
-  const value = token ?? (isConfigured ? '******************' : '')
-  const updateVercelAuth = useFetch(api.platforms.updateProvider)
-  const submit = async () => {
-    const { error } = await updateVercelAuth.fetch({
-      provider: 'vercel',
-      config: {
-        token: token!
-      }
-    }, { token: idToken! })
-    if (error) {
-      console.error(error)
-      toaster.danger(error.details)
-      return
-    }
-  }
-  return (
-    <Pane>
-      <Pane>
-        <TextInputField
-          label="Token"
-          placeholder='************'
-          value={value}
-          onChange={(e: any) => setToken(e.target.value)}
-        />
-      </Pane>
-      <Button
-        onClick={submit}
-        width='100%'
-        appearance='primary'
-        disabled={updateVercelAuth.loading}
-        isLoading={updateVercelAuth.loading}
-      >
-        {isConfigured ? 'Update' : 'Setup'}
-      </Button>
-    </Pane>
-  )
-}
-
 const AWSConfigForm = ({
+  workspaceId,
   platform,
   idToken
 }: {
-  platform: t.Platform | null
-  idToken: string | null
+  workspaceId: string
+  platform: t.Platform
+  idToken: string
 }) => {
 
-  const config = platform?.providers?.aws ?? {
-    accessKeyId: '',
-    accessKeySecret: '',
-    region: '',
-    configured: false
-  }
+  const aws = platform.providers.aws
   const isConfigured = platform?.providers?.aws?.configured ?? false
-  const [accessKeyId, setAccessKeyId] = useState<string>(config.accessKeyId ?? '')
-  const [accessKeySecret, setAccessKeySecret] = useState<string>(config.accessKeySecret ?? '')
-  const [region, setRegion] = useState<string>(config.region)
+  const [accessKeyId, setAccessKeyId] = useState<string>(aws.configured ? '*************' : '')
+  const [accessKeySecret, setAccessKeySecret] = useState<string>(aws.configured ? '*************' : '')
+  const [region, setRegion] = useState<string>(aws.region ?? '')
   const updateAwsConfig = useFetch(api.platforms.updateProvider)
 
   const submit = async () => {
+    const value: t.AWSProvider['auth'] = {
+      accessKeyId,
+      accessKeySecret,
+      region
+    }
     const { error } = await updateAwsConfig.fetch({
+      workspaceId,
+      platformId: platform.id,
       provider: 'aws',
-      config: {
-        accessKeyId,
-        accessKeySecret,
-        region
-      }
+      value
     }, { token: idToken! })
     if (error) {
       console.error(error)

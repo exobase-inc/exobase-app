@@ -97,6 +97,7 @@ export default function GitHubSourceSearch({
   if (step === 'branch') {
     return (
       <BranchListAndSelect
+        platform={platform}
         owner={source.owner}
         repo={source.repo}
         idToken={idToken}
@@ -179,7 +180,7 @@ const ConnectedRepositorySelection = ({
 }) => {
 
   const [filter, setFilter] = useState('')
-  const repositoriesRequest = useFetch(api.platforms.listAvailableRepositories)
+  const repositoriesRequest = useFetch(api.source.listRepos)
   const [isGithubConnected, setIsGithubConnected] = useState(platform.hasConnectedGithubApp)
 
   const repositories = repositoriesRequest.data?.repositories ?? []
@@ -190,10 +191,10 @@ const ConnectedRepositorySelection = ({
       : true
   }) ?? []
 
-  const platformPolling = usePollingFetch(api.platforms.getById, {
+  const platformPolling = usePollingFetch(api.platforms.find, {
     waitMs: 800,
     active: false,
-    args: { id: platform.id },
+    args: { platformId: platform.id, workspaceId: platform.workspaceId },
     auth: { token: idToken }
   })
 
@@ -202,7 +203,10 @@ const ConnectedRepositorySelection = ({
     const hasConnectedGithubApp = platformPolling.data?.platform?.hasConnectedGithubApp
     if (!hasConnectedGithubApp) return
     platformPolling.pause()
-    repositoriesRequest.fetch({}, { token: idToken })
+    repositoriesRequest.fetch({
+      workspaceId: platform.workspaceId,
+      platformId: platform.id
+    }, { token: idToken })
     setIsGithubConnected(true)
   }, [platformPolling.data])
 
@@ -218,7 +222,10 @@ const ConnectedRepositorySelection = ({
   }
 
   const refresh = () => {
-    repositoriesRequest.fetch({}, { token: idToken })
+    repositoriesRequest.fetch({
+      workspaceId: platform.workspaceId,
+      platformId: platform.id
+    }, { token: idToken })
   }
 
   if (isGithubConnected) return (
@@ -309,6 +316,7 @@ const BranchListAndSelect = ({
   owner,
   repo,
   idToken,
+  platform,
   onBack,
   onSelect
 }: {
@@ -316,14 +324,19 @@ const BranchListAndSelect = ({
   owner: string
   repo: string
   idToken: string
+  platform: t.Platform
   onBack?: () => void
   onSelect?: (name: string) => void
 }) => {
 
   const branchListRequest = useAjax(() => {
     if (installationId) {
-      return api.platforms.listAvailableBranches({
-        owner, repo, installationId
+      return api.source.listBranches({
+        workspaceId: platform.workspaceId,
+        platformId: platform.id,
+        owner, 
+        repo, 
+        installationId
       }, { token: idToken }).then(res => res.data.branches)
     } else {
       const octokit = new Octokit()

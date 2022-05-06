@@ -8,11 +8,11 @@ import {
 } from 'evergreen-ui'
 import { Header, Sidebar } from '../ui'
 import {
-  appState,
+  appState as appStateAtom,
+  platformState,
   userState,
-  currentPlatformState
+  workspaceState
 } from '../../state/app'
-
 
 export default function SceneLayout({
   subtitle,
@@ -23,13 +23,10 @@ export default function SceneLayout({
 }) {
 
   const { pathname } = useLocation()
-  const [currentPlatform, setCurrentPlatform] = Recoil.useRecoilState(currentPlatformState)
-  const { platforms } = Recoil.useRecoilValue(appState)
+  const workspace = Recoil.useRecoilValue(workspaceState)
+  const platform = Recoil.useRecoilValue(platformState)
+  const [appState, setAppState] = Recoil.useRecoilState(appStateAtom)
   const user = Recoil.useRecoilValue(userState)
-
-  const changeSelectedProject = (platformId: string) => {
-    setCurrentPlatform(platformId as any)
-  }
 
   return (
     <Split>
@@ -38,12 +35,11 @@ export default function SceneLayout({
       />
       <Pane flex={1}>
         <Header
-          title={currentPlatform?.name}
+          title={platform?.name}
           subtitle={subtitle}
-          platforms={platforms}
-          currentPlatformId={currentPlatform?.id}
+          workspaces={user?.workspaces}
+          currentWorkspaceId={workspace?.id}
           user={user}
-          onSwitchPlatform={changeSelectedProject}
         />
         <Pane
           flex={1}

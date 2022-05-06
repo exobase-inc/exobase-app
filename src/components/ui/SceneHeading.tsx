@@ -1,5 +1,5 @@
 import Recoil from 'recoil'
-import { currentPlatformState } from '../../state/app'
+import { workspaceState } from '../../state/app'
 import {
   Pane,
   Heading,
@@ -12,10 +12,10 @@ export default function SceneHeading ({
 }: {
   subtitle: string
 }) {
-  const currentPlatform = Recoil.useRecoilValue(currentPlatformState)
+  const workspace = Recoil.useRecoilValue(workspaceState)
   return (
     <Pane>
-      <Heading size={900}>{currentPlatform?.name}</Heading>
+      <Heading size={900}>{workspace?.name}</Heading>
       <Paragraph>{subtitle}</Paragraph>
     </Pane>
   )

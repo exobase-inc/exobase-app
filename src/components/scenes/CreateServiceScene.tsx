@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useState } from "react";
+import _ from 'radash'
+import { useEffect, useState } from "react";
 import * as t from "../../types";
 import { useNavigate } from "react-router";
 import Recoil from "recoil";
@@ -22,25 +23,26 @@ import {
   IconButton,
   SelectMenu,
 } from "evergreen-ui";
-import { currentPlatformState, idTokenState } from "../../state/app";
+import { workspaceState, idTokenState } from "../../state/app";
 import { useFetch, useFormation } from "../../hooks";
 import api from "../../api";
 import * as yup from "yup";
 import {
   SceneLayout,
   SelectList,
-  EnvironmentVariableForm,
+  KeyValueForm,
   GridBoxSelect,
   GitHubSourceSearch,
   StackConfigForm,
   WizardProgress,
 } from "../ui";
 import { HiArrowLeft, HiArrowRight, HiOutlineDuplicate } from "react-icons/hi";
-import { getDefaultStackConfig } from "../stacks/defaults";
+import { useParams } from "react-router-dom";
+import EnvironmentVariableForm from '../ui/EnvironmentVariableForm';
 
 type Step =
-  | "name-tags-language"
-  | "type-provider-service"
+  | "name-tags"
+  | "build-pack"
   | "domain"
   | "source"
   | "source-review"
@@ -53,20 +55,26 @@ type State = {
   provider: t.CloudProvider | null;
   type: t.ExobaseService | null;
   step: Step;
-  config: t.ServiceConfig | null;
+  config: any;
   name: string | null;
   source: null | t.ServiceSource;
-  domain: Omit<t.ServiceDomainConfig, "fqd"> | null;
-  tags: string[];
+  domain: null | {
+    domain: string
+    subdomain: null | string
+  }
+  tags: t.KeyValue[]
+  pack: t.BuildPackage | null
 };
 
 export default function CreateServiceScene() {
+  const { platformId } = useParams() as { platformId: string }
   const navigate = useNavigate();
   const idToken = Recoil.useRecoilValue(idTokenState);
-  const currentPlatform = Recoil.useRecoilValue(currentPlatformState);
-  const createServiceRequest = useFetch(api.services.create);
+  const workspace = Recoil.useRecoilValue(workspaceState)
+  const createServiceRequest = useFetch(api.units.create);
+  const listBuildPacksRequest = useFetch(api.registry.search);
   const [state, setState] = useState<State>({
-    step: "name-tags-language",
+    step: 'name-tags',
     language: null,
     service: null,
     provider: null,
@@ -76,24 +84,44 @@ export default function CreateServiceScene() {
     name: null,
     domain: null,
     tags: [],
+    pack: null
   });
 
-  const stackKey =
-    `${state.type}:${state.provider}:${state.service}` as t.StackKey;
+  useEffect(() => {
+    listBuildPacksRequest.fetch({})
+  }, [])
+  
+  const platform = workspace?.platforms.find(p => p.id === platformId)
 
-  const handleNameTagsLanguage = (data: {
+  
+  if (!workspace || !platform) {
+    return (
+      <span>something is wrong</span>
+      )
+    }
+
+    const domains: t.Domain[] = (() => {
+      if (!state.provider) return []
+      const provs = platform.providers as any as Record<t.CloudProvider, {
+        domains: t.Domain[]
+      }>
+      const p = provs[state.provider]
+      if (!p) return []
+      return p.domains
+    })()
+
+  const handleNameTags = (data: {
     name: string;
-    tags: string[];
-    language: t.Language;
+    tags: t.KeyValue[]
   }) => {
     setState({
       ...state,
       ...data,
-      step: "type-provider-service",
+      step: "build-pack",
     });
   };
 
-  const handleTypeProviderService = (data: {
+  const handleBuildPack = (data: {
     type: t.ExobaseService;
     provider: t.CloudProvider;
     service: t.CloudService;
@@ -109,29 +137,30 @@ export default function CreateServiceScene() {
     setState({ ...state, source, step: "config" });
   };
 
-  const handleConfig = (config: t.ServiceConfig) => {
+  const handleConfig = (config: any) => {
     setState({ ...state, config, step: "review" });
   };
 
-  const handleDomain = (domain: Omit<t.ServiceDomainConfig, "fqd">) => {
+  const handleDomain = (domain: {
+    domain: string
+    subdomain: null | string
+  }) => {
     const nextStep: Step = !!state.source ? "source-review" : "source";
     setState({ ...state, domain, step: nextStep });
   };
 
   const submit = async () => {
-    if (!currentPlatform) return;
-
     const { error } = await createServiceRequest.fetch(
       {
+        workspaceId: workspace.id,
+        platformId,
         name: state.name!,
-        tags: state.tags,
-        source: state.source!,
-        service: state.service!,
-        language: state.language!,
-        type: state.type as any,
-        provider: state.provider!,
-        config: state.config!,
-        domain: state.domain as t.ServiceDomainConfig,
+        tags: state.tags.map(kv => ({ name: kv.key, value: kv.value })),
+        source: state.source,
+        packId: state.pack!.id,
+        packConfig: state.config,
+        domainId: domains.find(d => d.domain === state.domain?.domain)?.id ?? null,
+        subdomain: state.domain?.subdomain ?? null
       },
       { token: idToken! }
     );
@@ -142,11 +171,11 @@ export default function CreateServiceScene() {
       return;
     }
 
-    navigate("/services");
+    navigate(`/platform/${platformId}/services`);
   };
 
   const cancel = () => {
-    navigate("/services");
+    navigate(`/platform/${platformId}/services`);
   };
 
   const setStep = (step: Step) => () => {
@@ -154,17 +183,17 @@ export default function CreateServiceScene() {
   };
 
   const title = (() => {
-    if (state.step === "name-tags-language") return "Create New Service";
+    if (state.step === "name-tags") return "Create New Service";
     return `Create ${state.name} Service`;
   })();
 
   const subtitle = (() => {
-    if (state.step === "name-tags-language")
+    if (state.step === "name-tags")
       return `
-        Create a new service in the ${currentPlatform?.name} platform.
+        Create a new service in the ${platform.name} platform.
         Add tags to help you organize services in the dashboard.
       `;
-    if (state.step === "type-provider-service") {
+    if (state.step === "build-pack") {
       return `
         What are you building and how do you want to deploy it?
       `;
@@ -216,8 +245,8 @@ export default function CreateServiceScene() {
             marginY={majorScale(2)}
             steps={["init", "type", "domain", "source", "config", "confirm"]}
             current={(() => {
-              if (state.step === "name-tags-language") return "init";
-              if (state.step === "type-provider-service") return "type";
+              if (state.step === "name-tags") return "init";
+              if (state.step === "build-pack") return "type";
               if (state.step === "domain") return "domain";
               if (state.step === "source") return "source";
               if (state.step === "source-review") return "source";
@@ -226,34 +255,37 @@ export default function CreateServiceScene() {
               return "confirm";
             })()}
           />
-          {state.step === "name-tags-language" && (
-            <ServiceNameTagsLanguageForm
+          {state.step === "name-tags" && (
+            <ServiceNameTagsForm
               onBack={cancel}
-              onSubmit={handleNameTagsLanguage}
+              onSubmit={handleNameTags}
             />
           )}
-          {state.step === "type-provider-service" && (
-            <TypeProviderServiceForm
-              onSubmit={handleTypeProviderService}
-              onBack={setStep("name-tags-language")}
+          {state.step === "build-pack" && (
+            <BuildPackForm
+              packs={listBuildPacksRequest.data?.packs ?? []}
+              onSubmit={handleBuildPack}
+              onBack={setStep("name-tags")}
             />
           )}
           {state.step === "domain" && (
             <ServiceDomainForm
               initDomain={state.domain}
-              platform={currentPlatform!}
+              platform={platform}
               provider={state.provider!}
+              domains={domains}
               onSubmit={handleDomain}
               onSkip={setStep("source")}
-              onBack={setStep("type-provider-service")}
+              onBack={setStep("build-pack")}
             />
           )}
           {state.step === "source" && (
             <RepositorySourceForm
               idToken={idToken ?? ""}
-              platform={currentPlatform!}
+              platform={platform}
               onSubmit={handleSource}
               onBack={setStep("domain")}
+              onSkip={setStep("config")}
             />
           )}
           {state.step === "source-review" && (
@@ -267,9 +299,8 @@ export default function CreateServiceScene() {
           {state.step === "config" && (
             <ServiceConfigForm
               initConfig={state.config}
-              platform={currentPlatform}
+              platform={platform}
               serviceName={state.name!}
-              stack={stackKey}
               onBack={setStep("source-review")}
               onSubmit={handleConfig}
             />
@@ -313,9 +344,9 @@ function ServiceReviewForm({
           {state.service}.
         </Paragraph>
         <Pane>
-          {state.tags.map((tag) => (
-            <Badge key={tag} marginRight={majorScale(1)}>
-              {tag}
+          {state.tags.map((tag, idx) => (
+            <Badge key={idx} marginRight={majorScale(1)}>
+              {tag.key}={tag.value}
             </Badge>
           ))}
         </Pane>
@@ -366,19 +397,17 @@ function ServiceReviewForm({
   );
 }
 
-function ServiceNameTagsLanguageForm({
+function ServiceNameTagsForm({
   onSubmit,
   onBack,
 }: {
   onSubmit: (data: {
     name: string;
-    tags: string[];
-    language: t.Language;
+    tags: t.KeyValue[]
   }) => void;
   onBack: () => void;
 }) {
-  const [language, setLanguage] = useState<t.Language>("typescript");
-  const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<t.KeyValue[]>([]);
   const form = useFormation(
     {
       name: yup.string().required(),
@@ -389,7 +418,7 @@ function ServiceNameTagsLanguageForm({
   );
 
   const handleSubmit = (formData: { name: string }) => {
-    onSubmit({ name: formData.name, tags, language });
+    onSubmit({ name: formData.name, tags });
   };
 
   return (
@@ -405,45 +434,9 @@ function ServiceNameTagsLanguageForm({
           <Pane>
             <Text>Tags</Text>
           </Pane>
-          <TagInput
-            width="100%"
-            marginTop={majorScale(1)}
-            inputProps={{
-              placeholder: "Add tags...",
-            }}
-            values={tags}
+          <KeyValueForm
             onChange={setTags}
-          />
-        </Pane>
-        <Pane marginTop={majorScale(4)}>
-          <Pane>
-            <Text>Language</Text>
-          </Pane>
-          <GridBoxSelect<t.Language>
-            marginTop={majorScale(2)}
-            selected={language}
-            onSelect={setLanguage}
-            choices={[
-              {
-                label: "Javascript",
-                key: "javascript",
-                comingSoon: true,
-              },
-              {
-                label: "Typescript",
-                key: "typescript",
-              },
-              {
-                label: "Python",
-                key: "python",
-                comingSoon: true,
-              },
-              {
-                label: "Swift",
-                key: "swift",
-                comingSoon: true,
-              },
-            ]}
+            value={tags}
           />
         </Pane>
       </Pane>
@@ -498,11 +491,13 @@ function RepositorySourceForm({
   idToken,
   onSubmit,
   onBack,
+  onSkip,
 }: {
   platform: t.Platform;
   idToken: string;
   onSubmit: (source: t.ServiceSource) => void;
   onBack: () => void;
+  onSkip?: () => void
 }) {
   return (
     <Pane marginTop={majorScale(2)}>
@@ -511,94 +506,49 @@ function RepositorySourceForm({
         idToken={idToken}
         onSubmit={onSubmit}
       />
-      <Split marginTop={majorScale(4)}>
+      <div className="mt-4 flex flex-row justify-between">
         <BackButton onClick={onBack} />
-      </Split>
+        <button onClick={onSkip} className="py-1 px-2 bg-slate-200 text-slate-900 hover:bg-slate-300">skip</button>
+      </div>
     </Pane>
   );
 }
 
-const TypeProviderServiceForm = ({
+const BuildPackForm = ({
+  packs,
   onSubmit,
   onBack,
 }: {
+  packs: t.BuildPackage[]
   onSubmit: (data: {
     type: t.ExobaseService;
     provider: t.CloudProvider;
     service: t.CloudService;
+    pack: t.BuildPackage
   }) => void;
   onBack: () => void;
 }) => {
   const [state, setState] = useState<{
-    type: t.ExobaseService;
-    provider: t.CloudProvider;
-    service: t.CloudService;
+    type: null | t.ExobaseService;
+    provider: null | t.CloudProvider;
+    service: null | t.CloudService;
+    packId: null | string
   }>({
-    type: "api",
-    provider: "aws",
-    service: "lambda",
+    type: null,
+    provider: null,
+    service: null,
+    packId: null
   });
-  const update = (key: "type" | "provider" | "service") => (value: any) => {
+  const update = (key: "type" | "provider" | "service" | "packId") => (value: any) => {
     setState({ ...state, [key]: value });
   };
-  const PROVIDER_SERVICE_TYPE = {
-    aws: {
-      api: [
-        {
-          key: "lambda",
-          label: "Lambda",
-        },
-        {
-          key: "ec2",
-          label: "EC2",
-          comingSoon: true,
-        },
-        {
-          key: "ecs",
-          label: "ECS",
-          comingSoon: true,
-        },
-      ],
-      "websocket-server": [
-        {
-          key: "lambda",
-          label: "Lambda",
-        },
-        {
-          key: "ecs",
-          label: "ECS",
-        },
-        {
-          key: "ec2",
-          label: "EC2",
-        },
-      ],
-      "static-website": [
-        {
-          key: "s3",
-          label: "S3",
-        },
-        {
-          key: "ec2",
-          label: "EC2",
-          comingSoon: true,
-        },
-      ],
-      "task-runner": [
-        {
-          key: "code-build",
-          label: "Code Build",
-        },
-      ],
-    },
-  } as any as Record<
-    t.CloudProvider,
-    Record<
-      t.ExobaseService,
-      { key: t.CloudService; label: string; comingSoon?: boolean }[]
-    >
-  >;
-  const serviceChoices = PROVIDER_SERVICE_TYPE[state.provider][state.type];
+  // const serviceChoices = PROVIDER_SERVICE_TYPE[state.provider][state.type];
+  const packChoices = packs.filter(p => {
+    if (state.provider && p.provider !== state.provider) return false
+    if (state.type && p.type !== state.type) return false
+    if (state.service && p.service !== state.service) return false
+    return true
+  })
   return (
     <Pane>
       <Pane marginTop={majorScale(4)}>
@@ -648,17 +598,7 @@ const TypeProviderServiceForm = ({
               label: "GCP",
               key: "gcp",
               comingSoon: true,
-            },
-            {
-              label: "Azure",
-              key: "azure",
-              comingSoon: true,
-            },
-            {
-              label: "Vercel",
-              key: "vercel",
-              comingSoon: true,
-            },
+            }
           ]}
         />
       </Pane>
@@ -668,14 +608,28 @@ const TypeProviderServiceForm = ({
           marginTop={majorScale(2)}
           selected={state.service}
           onSelect={update("service")}
-          choices={serviceChoices}
+          choices={packChoices.filter(p => !!p.service).map(p => ({ label: p.service!, key: p.service! }))}
+        />
+      </Pane>
+      <Pane marginTop={majorScale(4)}>
+        <Heading>Select your Build Pack</Heading>
+        <GridBoxSelect<string>
+          marginTop={majorScale(2)}
+          selected={state.service}
+          onSelect={update("packId")}
+          choices={packChoices.map(p => ({ label: p.name, key: p.id }))}
         />
       </Pane>
       <Split marginTop={majorScale(4)}>
         <Pane flex={1}>
           <BackButton onClick={onBack} />
         </Pane>
-        <NextButton onClick={() => onSubmit(state)} />
+        <NextButton disabled={!state.packId} onClick={() => onSubmit({
+          type: state.type!,
+          provider: state.provider!,
+          service: state.service!,
+          pack: packs.find(p => p.id === state.packId)!
+        })} />
       </Split>
     </Pane>
   );
@@ -685,43 +639,41 @@ const ServiceConfigForm = ({
   initConfig,
   platform,
   serviceName,
-  stack,
   onSubmit,
   onBack,
 }: {
-  initConfig: t.ServiceConfig | null;
+  initConfig: any | null;
   platform: t.Platform | null;
   serviceName: string;
-  stack: t.StackKey;
-  onSubmit: (config: t.ServiceConfig) => void;
+  onSubmit: (config: any) => void;
   onBack: () => void;
 }) => {
-  const [envVars, setEnvVars] = useState<t.EnvironmentVariable[]>(
-    initConfig?.environmentVariables ?? []
-  );
-  const [stackConfig, setStackConfig] = useState<{
-    config: t.AnyStackConfig | null;
-    isValid: boolean;
-  }>({
-    config: initConfig?.stack ?? getDefaultStackConfig(stack) ?? null,
-    isValid: true, // Assuming that the default config set deeper down is initally valid
-  });
+  // const [envVars, setEnvVars] = useState<t.EnvironmentVariable[]>(
+  //   initConfig?.environmentVariables ?? []
+  // );
+  // const [stackConfig, setStackConfig] = useState<{
+  //   config: t.AnyStackConfig | null;
+  //   isValid: boolean;
+  // }>({
+  //   config: initConfig?.stack ?? getDefaultStackConfig(stack) ?? null,
+  //   isValid: true, // Assuming that the default config set deeper down is initally valid
+  // });
 
-  const config: t.ServiceConfig = {
-    type: stack,
-    environmentVariables: envVars,
-    stack: stackConfig.config as any,
-  };
+  // const config: t.ServiceConfig = {
+  //   type: stack,
+  //   environmentVariables: envVars,
+  //   stack: stackConfig.config as any,
+  // };
 
-  const copyServiceConfig = (serviceId: string) => {
-    const service = platform?.services.find(s => s.id === serviceId)
-    if (!service) return
-    onSubmit(service.config)
-  }
+  // const copyServiceConfig = (serviceId: string) => {
+  //   const service = platform?.services.find(s => s.id === serviceId)
+  //   if (!service) return
+  //   onSubmit(service.config)
+  // }
 
   return (
     <Pane>
-      <Pane>
+      {/* <Pane>
         <SelectMenu
           title="Select Service"
           options={
@@ -733,22 +685,22 @@ const ServiceConfigForm = ({
             Copy Existing
           </Button>
         </SelectMenu>
-      </Pane>
-      <StackConfigForm
+      </Pane> */}
+      {/* <StackConfigForm
         value={config}
         platformName={platform?.name ?? ''}
         serviceName={serviceName}
         stack={stack}
         onStackConfigChange={setStackConfig}
         onEnvVarChange={setEnvVars}
-      />
+      /> */}
       <Split marginTop={majorScale(4)}>
         <Pane flex={1}>
           <BackButton onClick={onBack} />
         </Pane>
         <NextButton
-          disabled={!stackConfig.isValid}
-          onClick={() => onSubmit(config)}
+          // disabled={!stackConfig.isValid}
+          onClick={() => onSubmit({})}
         />
       </Split>
     </Pane>
@@ -759,17 +711,20 @@ const ServiceDomainForm = ({
   initDomain,
   platform,
   provider,
+  domains,
   onSubmit,
   onSkip,
   onBack,
 }: {
-  initDomain: Omit<t.ServiceDomainConfig, "fqd"> | null;
+  initDomain: { domain: string; subdomain: string | null } | null;
   platform: t.Platform;
   provider: t.CloudProvider;
-  onSubmit: (domain: Omit<t.ServiceDomainConfig, "fqd">) => void;
+  domains: t.Domain[];
+  onSubmit: (d: { domain: string; subdomain: string | null}) => void;
   onSkip?: () => void;
   onBack?: () => void;
 }) => {
+
   const [domain, setDomain] = useState(initDomain ? initDomain.domain : "");
   const subdomainForm = useFormation<{ subdomain: string }>(
     initDomain
@@ -787,8 +742,6 @@ const ServiceDomainForm = ({
       subdomain: subdomainForm.watch().subdomain,
     });
   };
-
-  const domains = platform.domains.filter((d) => d.provider === provider);
 
   const canSubmit = (() => {
     if (!domain) return false;
