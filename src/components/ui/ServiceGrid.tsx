@@ -88,9 +88,11 @@ const ServiceGridItem = ({
     : null
 
   const getVersion = (): string => {
-    const version = deployment?.output?.version
+    const version = deployment?.output?.find ? deployment.output.find(o => o.name === 'version')?.value : null
     return version ? `v${version}` : ''
   }
+
+  const url = deployment?.output.find ? deployment?.output.find(o => o.name === 'url')?.value ?? 'none' : null
 
   return (
     <Card
@@ -132,7 +134,7 @@ const ServiceGridItem = ({
         <>
           <Split marginBottom={majorScale(1)}>
             <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Link:</Heading>
-            <Text>{deployment?.output?.url ?? 'none'}</Text>
+            <Text>{url}</Text>
           </Split>
           <Split marginBottom={majorScale(1)}>
             <Heading fontWeight='bold' size={400} flex={1} marginRight={majorScale(1)}>Deployed:</Heading>

@@ -63,7 +63,7 @@ type State = {
     subdomain: null | string
   }
   tags: t.KeyValue[]
-  pack: t.BuildPackage | null
+  pack: t.BuildPackageRef | null
 };
 
 export default function CreateServiceScene() {
@@ -79,7 +79,7 @@ export default function CreateServiceScene() {
     service: null,
     provider: null,
     type: null,
-    config: null,
+    config: {},
     source: null,
     name: null,
     domain: null,
@@ -92,7 +92,6 @@ export default function CreateServiceScene() {
   }, [])
   
   const platform = workspace?.platforms.find(p => p.id === platformId)
-
   
   if (!workspace || !platform) {
     return (
@@ -125,21 +124,40 @@ export default function CreateServiceScene() {
     type: t.ExobaseService;
     provider: t.CloudProvider;
     service: t.CloudService;
+    pack: t.BuildPackageRef
   }) => {
     setState({
       ...state,
       ...data,
       step: "domain",
+      config: data.pack.version.inputs.reduce((acc, item) => {
+        if (!item.default) return acc
+        const defaultValue = (() => {
+          if (item.ui === 'string') return item.default
+          if (item.ui === 'number') return parseInt(item.default)
+          if (item.ui === 'envars') return [] // JSON.parse(item.default)
+          if (item.ui === 'bool') return item.default === 'true' ? true : false
+          return item.default
+        })()
+        return ({ ...acc, [item.name]: defaultValue })
+      }, {} as Record<string, any>)
     });
   };
+
+  console.log('x--> PACK: ', state.pack)
+  console.log('x--> CONFIG: ', state.config)
 
   const handleSource = (source: t.ServiceSource) => {
     setState({ ...state, source, step: "config" });
   };
 
-  const handleConfig = (config: any) => {
-    setState({ ...state, config, step: "review" });
+  const handleConfigSubmit = () => {
+    setState({ ...state, step: "review" });
   };
+
+  const handleConfigChange = (config: any) => {
+    setState({ ...state, config })
+  }
 
   const handleDomain = (domain: {
     domain: string
@@ -298,11 +316,13 @@ export default function CreateServiceScene() {
           )}
           {state.step === "config" && (
             <ServiceConfigForm
-              initConfig={state.config}
+              pack={state.pack!}
+              config={state.config}
               platform={platform}
               serviceName={state.name!}
-              onBack={setStep("source-review")}
-              onSubmit={handleConfig}
+              onBack={state.source ? setStep("source-review") : setStep('source')}
+              onChange={handleConfigChange}
+              onSubmit={handleConfigSubmit}
             />
           )}
           {state.step === "review" && (
@@ -524,7 +544,7 @@ const BuildPackForm = ({
     type: t.ExobaseService;
     provider: t.CloudProvider;
     service: t.CloudService;
-    pack: t.BuildPackage
+    pack: t.BuildPackageRef
   }) => void;
   onBack: () => void;
 }) => {
@@ -549,6 +569,21 @@ const BuildPackForm = ({
     if (state.service && p.service !== state.service) return false
     return true
   })
+  const submitPack = () => {
+    const pack = packs.find(p => p.id === state.packId)
+    if (!pack) return
+    const packRef = _.shake({
+      ...pack,
+      versions: undefined,
+      version: pack.versions.find(v => v.version === pack.latest)!
+    }) as  t.BuildPackageRef
+    onSubmit({
+      type: state.type!,
+      provider: state.provider!,
+      service: state.service!,
+      pack: packRef
+    })
+  }
   return (
     <Pane>
       <Pane marginTop={majorScale(4)}>
@@ -624,60 +659,43 @@ const BuildPackForm = ({
         <Pane flex={1}>
           <BackButton onClick={onBack} />
         </Pane>
-        <NextButton disabled={!state.packId} onClick={() => onSubmit({
-          type: state.type!,
-          provider: state.provider!,
-          service: state.service!,
-          pack: packs.find(p => p.id === state.packId)!
-        })} />
+        <NextButton disabled={!state.packId} onClick={submitPack} />
       </Split>
     </Pane>
   );
 };
 
 const ServiceConfigForm = ({
-  initConfig,
+  config,
+  pack,
   platform,
   serviceName,
   onSubmit,
+  onChange,
   onBack,
 }: {
-  initConfig: any | null;
+  config: any;
+  pack: t.BuildPackageRef;
   platform: t.Platform | null;
   serviceName: string;
-  onSubmit: (config: any) => void;
+  onChange: (config: any) => void
+  onSubmit: () => void;
   onBack: () => void;
 }) => {
-  // const [envVars, setEnvVars] = useState<t.EnvironmentVariable[]>(
-  //   initConfig?.environmentVariables ?? []
-  // );
-  // const [stackConfig, setStackConfig] = useState<{
-  //   config: t.AnyStackConfig | null;
-  //   isValid: boolean;
-  // }>({
-  //   config: initConfig?.stack ?? getDefaultStackConfig(stack) ?? null,
-  //   isValid: true, // Assuming that the default config set deeper down is initally valid
-  // });
 
-  // const config: t.ServiceConfig = {
-  //   type: stack,
-  //   environmentVariables: envVars,
-  //   stack: stackConfig.config as any,
-  // };
-
-  // const copyServiceConfig = (serviceId: string) => {
-  //   const service = platform?.services.find(s => s.id === serviceId)
-  //   if (!service) return
-  //   onSubmit(service.config)
-  // }
+  const copyServiceConfig = (unitId: string) => {
+    const service = platform?.units.find(u => u.id === unitId)
+    if (!service) return
+    onChange(service.config)
+  }
 
   return (
     <Pane>
-      {/* <Pane>
+      <Pane>
         <SelectMenu
           title="Select Service"
           options={
-            platform?.services.filter(s => s.config.stack.stack === stack).map(s => ({ label: s.name, value: s.id })) ?? []
+            platform?.units.filter(u => u.pack.id === pack.id).map(u => ({ label: u.name, value: u.id })) ?? []
           }
           onSelect={(item) => copyServiceConfig(item.value as string)}
         >
@@ -685,22 +703,21 @@ const ServiceConfigForm = ({
             Copy Existing
           </Button>
         </SelectMenu>
-      </Pane> */}
-      {/* <StackConfigForm
-        value={config}
+      </Pane>
+      <StackConfigForm
+        pack={pack}
+        config={config}
         platformName={platform?.name ?? ''}
         serviceName={serviceName}
-        stack={stack}
-        onStackConfigChange={setStackConfig}
-        onEnvVarChange={setEnvVars}
-      /> */}
+        onChange={onChange}
+      />
       <Split marginTop={majorScale(4)}>
         <Pane flex={1}>
           <BackButton onClick={onBack} />
         </Pane>
         <NextButton
           // disabled={!stackConfig.isValid}
-          onClick={() => onSubmit({})}
+          onClick={() => onSubmit()}
         />
       </Split>
     </Pane>

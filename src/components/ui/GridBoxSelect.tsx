@@ -49,8 +49,6 @@ export default function GridBoxSelect<TKey = string>({
   }[]
   onSelect?: (key: TKey) => void
 } & ArgumentTypes<typeof Pane>[0]) {
-  console.log('selected: ', selected)
-  console.log('keys: ', choices.map(c => c.key))
   return (
     <Pane
       display='grid'

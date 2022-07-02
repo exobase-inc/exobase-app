@@ -1404,10 +1404,10 @@
     axios "^0.24.0"
     radash "^1.5.2"
 
-"@exobase/client-js@^1.0.0-alpha.12":
-  version "1.0.0-alpha.12"
-  resolved "https://registry.yarnpkg.com/@exobase/client-js/-/client-js-1.0.0-alpha.12.tgz#897c27ef23ecb3260e4b6f7e8ea463b296dde6b0"
-  integrity sha512-mh1DA+MqlwLon7eoRp3KqZjl4d2RJ1ldHAF/G6cfeGwkcljdq51DeiK3IqxqWIwFZpwPb7isr01WbNgMrlp+Ig==
+"@exobase/client-js@^1.0.0-alpha.22":
+  version "1.0.0-alpha.22"
+  resolved "https://registry.yarnpkg.com/@exobase/client-js/-/client-js-1.0.0-alpha.22.tgz#50e56d1d5499d95784f202be149b8f8f374929d4"
+  integrity sha512-XeQXgRV5fojnNFBX59Y8wUfKiN4pola6CnZ1MSeZ6++bSHKgh1BNTRY15JQPpoH1sB/Q756ELM4ptSigOJA9KA==
   dependencies:
     "@exobase/client-builder" "^0.0.2-alpha.2"
 
@@ -8496,10 +8496,15 @@ quick-lru@^5.1.1:
   resolved "https://registry.yarnpkg.com/quick-lru/-/quick-lru-5.1.1.tgz#366493e6b3e42a3a6885e2e99d18f80fb7a8c932"
   integrity sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==
 
-radash@^1.13.1, radash@^1.5.2:
+radash@^1.13.1:
   version "1.13.1"
   resolved "https://registry.yarnpkg.com/radash/-/radash-1.13.1.tgz#77cacd6c0f5b157f3ee0fc6f2da4a717b8bd6582"
   integrity sha512-hxlJia5Zcd8Zi39+1YLx9ednb/ohRj8PfnEryWr1qrZ1rOL1jVaMBUkzHApqGjLLfNUoKR3WsoMifK5+cJIfKw==
+
+radash@^1.5.2:
+  version "1.14.2"
+  resolved "https://registry.yarnpkg.com/radash/-/radash-1.14.2.tgz#40bea74887b78704b099065d143ce7fb6c346b05"
+  integrity sha512-DYKN0nJ7v8Z4rIeFDUw7ohtrZZ/Xrv8QK7OJqyvHmWDgaib4WXypfhEKPcBMlnhMZztpjX9CVHRPMrVGQHEqQA==
 
 raf@^3.4.1:
   version "3.4.1"

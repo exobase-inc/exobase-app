@@ -25,7 +25,9 @@ import Modal from '../ui/Modal'
 export default function AdminPacksScene() {
 
   const navigate = useNavigate()
+  const idToken = useRecoilValue(idTokenState)
   const listPacksRequest = useFetch(api.registry.search)
+  const syncLatestRequest = useFetch(api.registry.sync)
   const [addPackModal, setAddPackModal] = useState(false)
 
   useEffect(() => {
@@ -36,6 +38,16 @@ export default function AdminPacksScene() {
 
   const addPack = async () => {
 
+  }
+
+  const syncLatest = (pack: t.BuildPackage) => async () => {
+    const { error } = await syncLatestRequest.fetch({
+      packId: pack.id
+    }, { token: idToken! })
+    if (error) {
+      toaster.danger(error.details)
+      return
+    }
   }
 
   const packs = listPacksRequest.data?.packs ?? []
@@ -64,6 +76,7 @@ export default function AdminPacksScene() {
             {packs.map(pack => (
               <div key={pack.id} className="flex flex-row items-center justify-between rounded-xl border border-slate-100 p-8 mb-4">
                 <span>{pack.name}</span>
+                <button onClick={syncLatest(pack)}>Sync Latest</button>
               </div>
             ))}
           </div>

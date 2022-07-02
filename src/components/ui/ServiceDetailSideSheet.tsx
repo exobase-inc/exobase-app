@@ -59,6 +59,7 @@ type TabName = 'deployments'
   | 'configuration'
   | 'source'
   | 'functions'
+  | 'pack'
 
 export default function ServiceDetailSideSheet({
   platform,
@@ -175,7 +176,7 @@ const SideSheetBody = ({
     setShowDestroyDialog(false)
   }
   const url = (() => {
-    const u = service.activeDeployment?.output?.url
+    const u = service.activeDeployment?.output?.find ? service.activeDeployment?.output?.find(o => o.name === 'output')?.value as string : null
     if (!u) return null
     if (u.startsWith('http')) return u
     return `https://${u}`
@@ -186,6 +187,7 @@ const SideSheetBody = ({
       duration: 2
     })
   }
+  const version = service.latestDeployment?.output?.find ? service.latestDeployment.output.find(o => o.name === 'version')?.value : null
   return (
     <Pane>
       <Pane zIndex={1} flexShrink={0} elevation={0} backgroundColor="white">
@@ -198,8 +200,8 @@ const SideSheetBody = ({
             <Paragraph flex={1} size={400} color="muted">
               A {service.pack.language} {service.pack.type} on {service.pack.provider} {service.pack.service}
             </Paragraph>
-            {service.latestDeployment?.output?.version && (
-              <Text>v{service.latestDeployment?.output.version}</Text>
+            {version && (
+              <Text>v{version}</Text>
             )}
           </Split>
           <Split alignItems='center'>
@@ -269,6 +271,12 @@ const SideSheetBody = ({
             >
               Source
             </Tab>
+            <Tab
+              isSelected={tab === 'pack'}
+              onSelect={() => onTabChange?.('pack')}
+            >
+              Pack
+            </Tab>
           </Tablist>
         </Pane>
       </Pane>
@@ -292,6 +300,12 @@ const SideSheetBody = ({
         )}
         {tab === 'source' && (
           <SourceCard
+            service={service}
+            platform={platform}
+          />
+        )}
+        {tab === 'pack' && (
+          <PackCard
             service={service}
             platform={platform}
           />
@@ -334,6 +348,35 @@ const SideSheetBody = ({
           onConfirm={remove}
         />
       </Dialog>
+    </Pane>
+  )
+}
+
+const PackCard = ({
+  service,
+  platform
+}: {
+  platform: t.Platform
+  service: t.Unit
+}) => {
+  const idToken = useRecoilValue(idTokenState) as string
+  const pack = service.pack.version
+  const upgradePackRequest = useFetch(api.units.upgradePack)
+  const upgradePack = async () => {
+    const { error } = await upgradePackRequest.fetch({
+      workspaceId: platform.workspaceId,
+      platformId: platform.id,
+      unitId: service.id
+    }, { token: idToken! })
+    if (error) {
+      toaster.danger(error.details)
+      return
+    }
+  }
+  return (
+    <Pane>
+      <span>Version: {pack.version}</span>
+      <Button onClick={upgradePack}>Upgrade</Button>
     </Pane>
   )
 }
@@ -541,6 +584,7 @@ const DeploymentsCard = ({
       toaster.danger(error.details)
       return
     }
+    
     setAppState({
       ...appState,
       workspace: {
@@ -549,7 +593,7 @@ const DeploymentsCard = ({
           ...platform,
           units: _.replace(platform.units, {
             ...service,
-            deployments: [...service.deployments, data.deploy]
+            deployments: [...service.deployments, data.deployment]
           }, u =>  u.id === service.id)
         }, p => p.id === platform.id)
       }
@@ -742,15 +786,11 @@ const ConfigurationCard = ({
         </Button>
       </Split>
       <StackConfigForm
-        value={config}
+        pack={service.pack}
+        config={config}
         platformName={platform.name}
         serviceName={service.name}
-        onStackConfigChange={({ config: newStackConfig }) => {
-          setConfig({ ...config, stack: newStackConfig })
-        }}
-        onEnvVarChange={(newEnvVars) => {
-          setConfig({ ...config, environmentVariables: newEnvVars })
-        }}
+        onChange={setConfig}
       />
     </Pane>
   )

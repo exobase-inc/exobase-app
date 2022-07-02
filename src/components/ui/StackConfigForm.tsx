@@ -4,86 +4,107 @@ import * as t from '../../types'
 import {
   Pane,
   majorScale,
+  TextInputField,
 } from 'evergreen-ui'
 import {
   EnvironmentVariableForm,
   CloseablePane
 } from '../ui'
 
-
 export default function StackConfigForm({
-  value,
+  pack,
+  config,
   platformName,
   serviceName,
-  onStackConfigChange,
-  onEnvVarChange
+  onChange
 }: {
-  value: any
+  pack: t.BuildPackageRef
+  config: any
   platformName: string
   serviceName: string
-  onStackConfigChange?: (update: {
-    isValid: boolean
-    config: any
-  }) => void
-  onEnvVarChange?: (envvars: t.EnvironmentVariable[]) => void
+  onChange?: (config: any) => void
 }) {
 
-  const [envVars, setEnvVars] = useState<t.EnvironmentVariable[]>(value.environmentVariables ?? [{
-    name: '',
-    value: '',
-    isSecret: false
-  }])
+  // Filter out exobase provided input variables
+  const inputs = pack.version.inputs.filter(
+    input => !input.name.startsWith('exo_')
+  )
 
-  const handleEnvVarsChange = async (newEnvVars: t.EnvironmentVariable[]) => {
-    setEnvVars(newEnvVars)
-    onEnvVarChange?.(newEnvVars.filter(e => (e.name?.length ?? 0) > 0))
+  const handleStringChange = (input: t.BuildPackageRef['version']['inputs'][0]): React.ChangeEventHandler<HTMLInputElement> => (event) => {
+    onChange?.({
+      ...config,
+      [input.name]: event.target.value
+    })
+  }
+  
+  const handleNumberChange = (input: t.BuildPackageRef['version']['inputs'][0]): React.ChangeEventHandler<HTMLInputElement> => (event) => {
+    const val = event.target.value
+    const includesNonNumber = /[^\d]/.exec(val)
+    if (includesNonNumber) return
+    onChange?.({
+      ...config,
+      [input.name]: parseInt(val)
+    })
+  }
+
+  const handleEnvironmentVarsChange = (input: t.BuildPackageRef['version']['inputs'][0]) => (envars: t.EnvironmentVariable[]) => {
+    onChange?.({
+      ...config,
+      [input.name]: envars
+    })
+  }
+
+  const handleBoolChange = (input: t.BuildPackageRef['version']['inputs'][0]): React.ChangeEventHandler<HTMLInputElement> => (event) => {
+    onChange?.({
+      ...config,
+      [input.name]: event.target.checked
+    })
   }
 
   return (
     <Pane marginTop={majorScale(3)}>
-      <CloseablePane
-        initOpen={true}
-        label='Environment Variables'
-      >
-        <EnvironmentVariableForm
-          values={envVars}
-          onChange={handleEnvVarsChange}
-        />
-      </CloseablePane>
-      <CloseablePane
-        label='Default Variables'
-        marginTop={majorScale(3)}
-      >
-        <EnvironmentVariableForm
-          disabled
-          values={[{
-            name: 'EXOBASE_MODULE',
-            value: '{{module}}',
-            isSecret: false
-          }, {
-            name: 'EXOBASE_FUNCTION',
-            value: '{{function}}',
-            isSecret: false
-          }, {
-            name: 'EXOBASE_PLATFORM',
-            value: `${platformName}`,
-            isSecret: false
-          }, {
-            name: 'EXOBASE_SERVICE',
-            value: `${serviceName}`,
-            isSecret: false
-          }]}
-        />
-      </CloseablePane>
-      <CloseablePane
-        label='Advanced Configuration'
-        marginTop={majorScale(3)}
-      >
-        {/* <StackForm
-          value={value.stack}
-          onChange={onStackConfigChange}
-        /> */}
-      </CloseablePane>
+      {inputs.map(input => (
+        <div key={input.name}>
+          {input.ui === 'string' && (
+            <TextInputField 
+              label={input.label}
+              placeholder={input.placeholder ?? ''}
+              value={config[input.name] ?? ''}
+              onChange={handleStringChange(input)}
+            />
+          )}
+          {input.ui === 'number' && (
+            <TextInputField
+              label={input.label}
+              placeholder={input.placeholder ?? ''}
+              value={config[input.name] ?? ''}
+              onChange={handleNumberChange(input)}
+            />
+          )}
+          {input.ui === 'bool' && (
+            <>
+              <input
+                type="checkbox" 
+                id={input.name} 
+                name="scales" 
+                checked={config[input.name] === true} 
+                onChange={handleBoolChange(input)} 
+              />
+              <label htmlFor={input.name}>{input.label}</label>
+            </>
+          )}
+          {input.ui === 'envars' && (
+            <>
+              <label>{input.label}</label>
+              <EnvironmentVariableForm
+                hideHeader
+                values={config[input.name] ?? []}
+                onChange={handleEnvironmentVarsChange(input)}
+              />
+            </>
+          )}
+        </div>
+      ))}
     </Pane>
   )
 }
